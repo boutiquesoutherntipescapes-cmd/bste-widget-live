@@ -1,6 +1,6 @@
 import ical from 'node-ical';
 import fs from 'fs';
-import { overlaps } from './utils.mjs';
+import { overlaps } from './utils.js';
 
 function getConfig() {
   const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url));
