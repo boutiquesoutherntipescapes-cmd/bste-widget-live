@@ -1,4 +1,4 @@
-import ical from 'node-ical';
+import * as ical from 'node-ical';   // <— use namespace import
 import fs from 'fs';
 import { overlaps } from './utils.js';
 
@@ -17,11 +17,12 @@ function getConfig() {
 async function loadIcs(url) {
   if (!url) return [];
   try {
-    const data = await ical.fromURL(url, {});
+    // node-ical v0.20+ async API
+    const data = await ical.async.fromURL(url);
     const events = Object.values(data).filter(e => e.type === 'VEVENT');
     return events.map(e => ({ start: new Date(e.start), end: new Date(e.end), summary: e.summary || '' }));
   } catch (e) {
-    // If an ICS URL fails, just ignore it rather than crash
+    // Swallow ICS fetch/parse errors so one bad feed doesn't crash
     return [];
   }
 }
