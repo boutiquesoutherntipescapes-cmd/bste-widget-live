@@ -1,0 +1,138 @@
+{
+  "timezone": "Johannesburg South Africa",
+  "currency": "ZAR",
+  "properties": [
+    {
+      "property_slug": "sonvanger-struisbaai",
+      "display_name": "Sonvanger Villa",
+      "property_page_url": "https://www.boutiquesoutherntipescapes.com/sonvanger-struisbaai",
+      "ical": {
+        "airbnb": "https://www.airbnb.co.za/calendar/ical/1414410889105754788.ics?s=b64a3fc76b01c0fa0c81d8deeb14dea4",
+        "bookingcom": "https://ical.booking.com/v1/export?t=a929966e-8874-4e46-b017-dfe8f0df85f3",
+        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=cVo4cGgzVFZuNlJJRWxrRFgwa05RUT09"
+      },
+      "seasons": [
+        {
+          "season_name": "Low Season",
+          "months": "February,  March, April, May, June, August, October, November,",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 1,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "Shoulder Season",
+          "months": "July, September",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 2,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "High Season",
+          "months": "December, January",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 5,
+          "cleaning_fee_zar": 0
+        }
+      ]
+    },
+    {
+      "property_slug": "legacy-suiderstrand",
+      "display_name": "Legacy Beach Villa",
+      "property_page_url": "https://www.boutiquesoutherntipescapes.com/legacy-suiderstrand",
+      "ical": {
+        "airbnb": "https://www.airbnb.co.za/calendar/ical/1480226372648214323.ics?s=8782e063a447d90685980e0c04833353",
+        "bookingcom": "https://ical.booking.com/v1/export?t=133c0bda-526b-4e27-bf10-c5ea2be89f44",
+        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=b013a2pSMXluTXpyMmc2SHBtMHZLZz09"
+      },
+      "seasons": [
+        {
+          "season_name": "Low Season",
+          "months": "February,  March, April, May, June, August, October, November,",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 1,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "Shoulder Season",
+          "months": "July, September",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 2,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "High Season",
+          "months": "December, January",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 5,
+          "cleaning_fee_zar": 0
+        }
+      ]
+    },
+    {
+      "property_slug": "agape-agulhas",
+      "display_name": "Agape Villa",
+      "property_page_url": "https://www.boutiquesoutherntipescapes.com/agape-agulhas",
+      "ical": {
+        "airbnb": "https://www.airbnb.co.za/calendar/ical/1461510969026881676.ics?s=a512e1b11c5f1fec8632313ea2b2e255",
+        "bookingcom": "https://ical.booking.com/v1/export?t=60a2df21-ffee-410e-8bd4-af4d92effbd1",
+        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=aVZ3QjdxNktWTFJjbHNYeHpwaG9vUT09"
+      },
+      "seasons": [
+        {
+          "season_name": "Low Season",
+          "months": "February,  March, April, May, June, August, October, November,",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 1,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "Shoulder Season",
+          "months": "July, September",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 3,
+          "cleaning_fee_zar": 0
+        },
+        {
+          "season_name": "High Season",
+          "months": "December, January",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 5,
+          "cleaning_fee_zar": 0
+        }
+      ]
+    },
+    {
+      "property_slug": "despacito-struisbaai",
+      "display_name": "Despacito",
+      "property_page_url": "https://www.boutiquesoutherntipescapes.com/despacito-struisbaai",
+      "ical": {
+        "airbnb": "",
+        "bookingcom": "https://ical.booking.com/v1/export?t=6c86115e-20dc-4340-a7ec-0d10e4f680e7",
+        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=ZUx0S1MwYmFxU0ZmVzZpK0pIZVhYZz09"
+      },
+      "seasons": [
+        {
+          "season_name": "Low Season",
+          "months": "February,  March, April, May, June, August, October, November,",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 1,
+          "cleaning_fee_zar": 0.0
+        },
+        {
+          "season_name": "Shoulder Season",
+          "months": "July, September",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 2,
+          "cleaning_fee_zar": 0.0
+        },
+        {
+          "season_name": "High Season",
+          "months": "December, January",
+          "nightly_rate_zar": 0,
+          "min_stay_nights": 3,
+          "cleaning_fee_zar": 0.0
+        }
+      ]
+    }
+  ]
+}
