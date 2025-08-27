@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { parseMonthsSpec, stayNights, dateRangeList, isoDate } from './utils.mjs';
+import { parseMonthsSpec, stayNights, dateRangeList, isoDate } from './utils.js';
 
 function getConfig() {
   const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url));
