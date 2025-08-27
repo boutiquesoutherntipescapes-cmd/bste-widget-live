@@ -21,39 +21,46 @@
     .bste-prop-name{font-weight:600;}
     .bste-prop-actions{display:flex; gap:8px;}
     .bste-link{padding:8px 12px; border:1px solid #e0b98f; border-radius:9999px; background:#fff; cursor:pointer; font-size:13px; text-decoration:none; color:#111827;}
-    /* Popup modal */
-    .bste-modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;}
-    .bste-modal{background:#fff; border-radius:16px; width:min(720px,96vw); height:min(80vh,840px); position:relative; box-shadow:0 25px 70px rgba(0,0,0,.25); overflow:hidden}
-    .bste-modal iframe{width:100%; height:100%; border:0;}
-    .bste-modal-close{position:absolute; top:6px; right:10px; font-size:22px; border:0; background:transparent; cursor:pointer; line-height:1}
+    /* Toast for success */
+    .bste-toast{position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+      background:#065f46; color:#fff; padding:10px 16px; border-radius:12px; z-index:999999; box-shadow:0 10px 30px rgba(0,0,0,.25);}
     @media (max-width: 900px){ .bste-row{ grid-template-columns: 1fr 1fr } }
     @media (max-width: 560px){ .bste-row{ grid-template-columns: 1fr } }
   `;
-
-  // one-time style inject for modal too
+  // inject styles once
   (function(){ const s=document.createElement('style'); s.innerHTML=WIDGET_CSS; document.head.appendChild(s); })();
 
-  function el(tag, cls, html) { const e=document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; }
+  function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; }
   function getParam(k){ return new URLSearchParams(location.search).get(k) || ""; }
   function findMounts(){ return Array.from(document.querySelectorAll('[data-bste-widget]')); }
 
-  // Simple popup modal with iframe
-  function openBookingModal(url){
-    const overlay = el('div','bste-modal-overlay');
-    const modal = el('div','bste-modal');
-    const close = el('button','bste-modal-close','×');
-    const frame = document.createElement('iframe');
-    frame.src = url;
-    close.addEventListener('click', ()=> document.body.removeChild(overlay));
-    overlay.addEventListener('click', (e)=> { if (e.target === overlay) document.body.removeChild(overlay); });
-    modal.appendChild(close); modal.appendChild(frame); overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    // listen for the bridge message to close
+  function addParams(url, params){
+    const hasQ = url.includes('?');
+    const q = new URLSearchParams(params).toString();
+    return url + (hasQ ? '&' : '?') + q;
+  }
+
+  // Small toast message
+  function showToast(msg){
+    const t = el('div','bste-toast', msg);
+    document.body.appendChild(t);
+    setTimeout(()=>{ try{ t.remove(); }catch(e){} }, 3500);
+  }
+
+  // Open GHL form in a centered popup window and listen for close signal
+  function openBookingPopup(url){
+    const w = window.open(url, 'bsteBooking',
+      'popup=yes,width=760,height=840,left='+(screen.width/2-380)+',top='+(screen.height/2-420)+
+      ',menubar=0,toolbar=0,location=0,status=0,scrollbars=1,resizable=1');
+    if (!w){ // popup blocked → fallback to normal navigation
+      window.location.href = url;
+      return;
+    }
     function onMsg(ev){
-      // Only trust our Vercel bridge page
-      if (typeof ev.data === 'object' && ev.data && ev.data.type === 'bste:form-submitted') {
-        try { document.body.removeChild(overlay); } catch(e){}
+      if (ev && ev.data && ev.data.type === 'bste:form-submitted'){
+        showToast('Thanks — your booking request was sent.');
         window.removeEventListener('message', onMsg);
+        try { w.close(); } catch(e){}
       }
     }
     window.addEventListener('message', onMsg);
@@ -89,15 +96,18 @@
 
     const suggWrap = el('div','bste-suggest','');      // nearby dates
     const altPropsWrap = el('div','bste-altprops',''); // other properties
-
     card.appendChild(status); card.appendChild(price); card.appendChild(err);
     card.appendChild(suggWrap); card.appendChild(altPropsWrap);
 
     const bookWrap = el('div','bste-row'); const bookBtn = el('button','bste-btn','Book now'); bookBtn.style.display='none';
     bookWrap.appendChild(bookBtn); card.appendChild(bookWrap);
+
     mount.appendChild(card);
 
-    function clearUI(){ err.textContent=''; price.textContent=''; status.textContent=''; suggWrap.innerHTML=''; altPropsWrap.innerHTML=''; bookBtn.style.display='none'; }
+    function clearUI(){
+      err.textContent=''; price.textContent=''; status.textContent='';
+      suggWrap.innerHTML=''; altPropsWrap.innerHTML=''; bookBtn.style.display='none';
+    }
 
     function renderSuggestions(list){
       if (!list || !list.length) return;
@@ -110,12 +120,6 @@
         pills.appendChild(pill);
       });
       suggWrap.appendChild(title); suggWrap.appendChild(pills);
-    }
-
-    function addParams(url, params){
-      const hasQ = url.includes('?');
-      const q = new URLSearchParams(params).toString();
-      return url + (hasQ ? '&' : '?') + q;
     }
 
     function renderOtherProps(list){
@@ -148,7 +152,7 @@
 
         if (!avail.available){
           status.innerHTML = '<span class="bste-err">Not available for those dates.</span>';
-          // Suggestions via GET (fast)
+          // Suggestions via GET
           const qs = new URLSearchParams({ property_slug: property, check_in: ci, check_out: co }).toString();
           const sres = await fetch(`${apiBase}/api/suggest?${qs}`);
           const sjson = await sres.json();
@@ -178,7 +182,7 @@
 
         bookBtn.style.display='inline-block';
         bookBtn.onclick = () => {
-          // Build the GHL form URL with all params
+          // Build the GHL hosted form URL with all params
           const params = {
             property: property,
             check_in: ci,
@@ -189,25 +193,18 @@
             currency: quote.currency || 'ZAR'
           };
           const target = addParams(bookingUrlBase, params);
-
-          // If data-booking-url is a full URL (GHL), open modal. Otherwise navigate.
-          if (/^https?:\/\//i.test(bookingUrlBase)){
-            openBookingModal(target);
-          } else {
-            window.location.href = target; // fallback: normal page
-          }
+          // Open in popup window
+          openBookingPopup(target);
         };
       }catch(e){ err.textContent = e.message; }
     }
 
-    // Prefill from URL (so cross-property links can pre-populate dates)
+    // Prefill from URL (for cross-property links)
     const urlIn  = getParam('check_in');  if (urlIn)  inpIn.value = urlIn;
     const urlOut = getParam('check_out'); if (urlOut) inpOut.value = urlOut;
     const urlG   = getParam('guests');    if (urlG)   inpG.value = urlG;
 
     btn.addEventListener('click', check);
-
-    // Auto-run if dates are present in the URL
     if (inpIn.value && inpOut.value) { setTimeout(check, 0); }
   }
 
