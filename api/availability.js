@@ -1,10 +1,8 @@
-import * as ical from 'node-ical';   // <— use namespace import
 import fs from 'fs';
 import { overlaps } from './utils.js';
 
 function cors(res) {
-  // TEMP while testing — we’ll lock this to your domain later
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP while testing
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -14,15 +12,26 @@ function getConfig() {
   return JSON.parse(raw.toString());
 }
 
+async function getNodeIcal() {
+  try {
+    const mod = await import('node-ical'); // dynamic import
+    return mod;
+  } catch (e) {
+    console.error('node-ical import failed:', e);
+    return null;
+  }
+}
+
 async function loadIcs(url) {
   if (!url) return [];
+  const ical = await getNodeIcal();
+  if (!ical) return [];
   try {
-    // node-ical v0.20+ async API
-    const data = await ical.async.fromURL(url);
-    const events = Object.values(data).filter(e => e.type === 'VEVENT');
-    return events.map(e => ({ start: new Date(e.start), end: new Date(e.end), summary: e.summary || '' }));
+    const data = await ical.async.fromURL(url); // async API
+    const events = Object.values(data || {}).filter(e => e && e.type === 'VEVENT');
+    return events.map(e => ({ start: new Date(e.start), end: new Date(e.end) }));
   } catch (e) {
-    // Swallow ICS fetch/parse errors so one bad feed doesn't crash
+    console.error('ICS fetch/parse error for', url, e);
     return [];
   }
 }
@@ -48,9 +57,10 @@ export default async function handler(req, res) {
 
     const start = new Date(check_in);
     const end = new Date(check_out);
-    const conflict = busy.some(ev => overlaps(start, end, ev.start, ev.end));
+    const conflict = busy.some(ev => (start < ev.end) && (ev.start < end));
     return res.status(200).json({ available: !conflict });
   } catch (err) {
+    console.error('Availability fatal error:', err);
     return res.status(500).json({ error: 'Server error in availability', detail: String(err) });
   }
 }
