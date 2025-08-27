@@ -1,53 +1,87 @@
-export function parseMonthsSpec(spec) {
-  const monthMap = {
-    jan:1,feb:2,mar:3,apr:4,may:5,jun:6,
-    jul:7,aug:8,sep:9,oct:10,nov:11,dec:12
-  };
-  const parts = (spec || '').split(',').map(s => s.trim()).filter(Boolean);
-  const months = new Set();
-  for (const part of parts) {
-    const m = part.toLowerCase();
-    if (m.includes('-')) {
-      const [a,b] = m.split('-').map(x => x.trim());
-      const start = monthMap[a.slice(0,3)] || monthMap[a];
-      const end   = monthMap[b.slice(0,3)] || monthMap[b];
-      if (!start || !end) continue;
-      if (start <= end) {
-        for (let k=start; k<=end; k++) months.add(k);
-      } else {
-        for (let k=start; k<=12; k++) months.add(k);
-        for (let k=1; k<=end; k++) months.add(k);
-      }
-    } else {
-      const mnum = monthMap[m.slice(0,3)] || monthMap[m];
-      if (mnum) months.add(mnum);
-    }
-  }
-  return Array.from(months.values()).sort((a,b)=>a-b);
+// ===== utils.js (drop-in) =====
+
+// Return true if [aStart,aEnd) overlaps [bStart,bEnd)
+export function overlaps(aStart, aEnd, bStart, bEnd) {
+  const A = new Date(aStart), B = new Date(aEnd);
+  const C = new Date(bStart), D = new Date(bEnd);
+  return (A < D) && (C < B);
 }
 
-export function stayNights(checkIn, checkOut) {
-  const ms = new Date(checkOut) - new Date(checkIn);
-  const nights = Math.round(ms/(1000*60*60*24));
-  return nights < 0 ? 0 : nights;
+// YYYY-MM-DD from a Date or date-like
+export function isoDate(d) {
+  return new Date(d).toISOString().slice(0, 10);
 }
 
-export function dateRangeList(checkIn, nights) {
+// Nights count between two dates (check-out exclusive)
+export function stayNights(check_in, check_out) {
+  const a = new Date(check_in), b = new Date(check_out);
+  // normalise to midnight UTC for date-only math
+  a.setUTCHours(0,0,0,0); b.setUTCHours(0,0,0,0);
+  const diff = Math.round((b - a) / 86400000);
+  return Math.max(0, diff);
+}
+
+// List of night start dates (YYYY-MM-DD) for a stay
+export function dateRangeList(check_in, nights) {
   const out = [];
-  const start = new Date(checkIn);
-  for (let i=0;i<nights;i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate()+i);
-    out.push(d);
+  const d = new Date(check_in);
+  d.setUTCHours(0,0,0,0);
+  for (let i = 0; i < Number(nights || 0); i++) {
+    out.push(new Date(d).toISOString().slice(0,10));
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return out;
 }
 
-export function isoDate(d) {
-  const z = new Date(d);
-  return z.toISOString().slice(0,10);
+// Normalise to YYYY-MM-DD
+export function ymd(d) {
+  return new Date(d).toISOString().slice(0,10);
 }
 
-export function overlaps(aStart, aEnd, bStart, bEnd) {
-  return (aStart < bEnd) && (bStart < aEnd);
+// Array of YYYY-MM-DD for each NIGHT in [start, end)
+export function nightsBetween(start, end) {
+  const out = [];
+  const a = new Date(start), b = new Date(end);
+  a.setUTCHours(0,0,0,0); b.setUTCHours(0,0,0,0);
+  for (let t = a.getTime(); t < b.getTime(); t += 86400000) {
+    out.push(new Date(t).toISOString().slice(0,10));
+  }
+  return out;
+}
+
+// Parse season month spec into array of month numbers [1..12]
+// Accepts forms like: "Feb-Jun, Oct, Nov" or "2-6,10,11"
+export function parseMonthsSpec(spec) {
+  if (!spec) return [];
+  const MONTHS = {
+    jan:1,feb:2,mar:3,apr:4,may:5,jun:6,
+    jul:7,aug:8,sep:9,oct:10,nov:11,dec:12
+  };
+  const add = new Set();
+  const parts = String(spec).split(',').map(s => s.trim()).filter(Boolean);
+
+  const toNum = (token) => {
+    const t = token.toLowerCase();
+    if (MONTHS[t]) return MONTHS[t];
+    const n = parseInt(t, 10);
+    if (n >= 1 && n <= 12) return n;
+    throw new Error(`Invalid month token: ${token}`);
+  };
+
+  for (const p of parts) {
+    if (p.includes('-')) {
+      const [a,b] = p.split('-').map(s => s.trim());
+      const start = toNum(a), end = toNum(b);
+      if (start <= end) {
+        for (let m = start; m <= end; m++) add.add(m);
+      } else {
+        // wrap-around range like "Nov-Feb"
+        for (let m = start; m <= 12; m++) add.add(m);
+        for (let m = 1; m <= end; m++) add.add(m);
+      }
+    } else {
+      add.add(toNum(p));
+    }
+  }
+  return Array.from(add).sort((x,y)=>x-y);
 }
