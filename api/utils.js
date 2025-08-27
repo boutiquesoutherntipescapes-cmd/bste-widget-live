@@ -1,4 +1,4 @@
-// ===== utils.js (drop-in) =====
+// ===== utils.js (robust months + date helpers) =====
 
 // Return true if [aStart,aEnd) overlaps [bStart,bEnd)
 export function overlaps(aStart, aEnd, bStart, bEnd) {
@@ -15,7 +15,6 @@ export function isoDate(d) {
 // Nights count between two dates (check-out exclusive)
 export function stayNights(check_in, check_out) {
   const a = new Date(check_in), b = new Date(check_out);
-  // normalise to midnight UTC for date-only math
   a.setUTCHours(0,0,0,0); b.setUTCHours(0,0,0,0);
   const diff = Math.round((b - a) / 86400000);
   return Math.max(0, diff);
@@ -50,28 +49,64 @@ export function nightsBetween(start, end) {
 }
 
 // Parse season month spec into array of month numbers [1..12]
-// Accepts forms like: "Feb-Jun, Oct, Nov" or "2-6,10,11"
+// Accepts:
+//  - Full names: "February", "October", "December"
+//  - Short names: "Feb", "Oct", "Dec"
+//  - Ranges: "Feb-Jun", "November–February", "Mar to May", "Aug through Sep"
+//  - Lists: "Feb, Jun, Oct", "December + January", "Oct & Nov", "Jun and Jul"
+//  - Numbers: "2-6,10,11"
+// Case-insensitive; tolerant of punctuation and mixed separators
 export function parseMonthsSpec(spec) {
   if (!spec) return [];
+  // normalise separators & punctuation
+  let s = String(spec).toLowerCase()
+    .replace(/–|—/g, '-')       // en/em dashes -> hyphen
+    .replace(/\bto\b/g, '-')    // "to" -> hyphen
+    .replace(/\bthrough\b/g, '-') // "through" -> hyphen
+    .replace(/\+/g, ',')        // plus -> comma
+    .replace(/&/g, ',')         // ampersand -> comma
+    .replace(/\band\b/g, ',')   // "and" -> comma
+    .replace(/\./g, '');        // remove trailing dots like "Sept."
+  // map of month names (short + long) -> number
   const MONTHS = {
-    jan:1,feb:2,mar:3,apr:4,may:5,jun:6,
-    jul:7,aug:8,sep:9,oct:10,nov:11,dec:12
+    jan:1, january:1,
+    feb:2, february:2,
+    mar:3, march:3,
+    apr:4, april:4,
+    may:5,
+    jun:6, june:6,
+    jul:7, july:7,
+    aug:8, august:8,
+    sep:9, sept:9, september:9,
+    oct:10, october:10,
+    nov:11, november:11,
+    dec:12, december:12
   };
+
   const add = new Set();
-  const parts = String(spec).split(',').map(s => s.trim()).filter(Boolean);
+  const parts = s.split(',').map(x => x.trim()).filter(Boolean);
 
   const toNum = (token) => {
-    const t = token.toLowerCase();
-    if (MONTHS[t]) return MONTHS[t];
+    const t = token.trim();
+    if (!t) return null;
+    if (MONTHS[t] != null) return MONTHS[t];
+    // try first 3 letters if full name given weirdly
+    const t3 = t.slice(0,3);
+    if (MONTHS[t3] != null) return MONTHS[t3];
     const n = parseInt(t, 10);
-    if (n >= 1 && n <= 12) return n;
+    if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
     throw new Error(`Invalid month token: ${token}`);
   };
 
   for (const p of parts) {
+    if (!p) continue;
     if (p.includes('-')) {
-      const [a,b] = p.split('-').map(s => s.trim());
+      const [a, b] = p.split('-').map(x => x.trim()).filter(Boolean);
+      if (!a && !b) continue;
+      if (a && !b) { add.add(toNum(a)); continue; }
+      if (!a && b) { add.add(toNum(b)); continue; }
       const start = toNum(a), end = toNum(b);
+      if (start == null || end == null) continue;
       if (start <= end) {
         for (let m = start; m <= end; m++) add.add(m);
       } else {
@@ -80,7 +115,8 @@ export function parseMonthsSpec(spec) {
         for (let m = 1; m <= end; m++) add.add(m);
       }
     } else {
-      add.add(toNum(p));
+      const n = toNum(p);
+      if (n != null) add.add(n);
     }
   }
   return Array.from(add).sort((x,y)=>x-y);
