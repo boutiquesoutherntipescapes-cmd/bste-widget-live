@@ -1,8 +1,8 @@
 import fs from 'fs';
-import { parseMonthsSpec, stayNights, dateRangeList, isoDate, nightsBetween } from './utils.js';
+import * as utils from './utils.js'; // namespace import avoids hard crashes if a function is missing
 
 function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP while testing – we’ll lock this later
+  res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP for testing – we’ll lock this later
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -38,7 +38,7 @@ async function loadFeedsForProperty(prop) {
     try {
       const data = await fromURLCompat(url);
       const events = Object.values(data || {}).filter(e => e && e.type === 'VEVENT');
-      for (const e of events) for (const n of nightsBetween(e.start, e.end)) busy.add(n);
+      for (const e of events) for (const n of (utils.nightsBetween?.(e.start, e.end) || [])) busy.add(n);
       feeds_ok++;
     } catch (_) { /* ignore individual feed failure */ }
   }
@@ -47,9 +47,23 @@ async function loadFeedsForProperty(prop) {
 
 function monthFromDate(d) { return (new Date(d)).getMonth() + 1; }
 
+// Pricing/min-stay using utils if present
 function priceAndMinStay(prop, check_in, check_out, currency='ZAR') {
+  const stayNights = utils.stayNights;
+  const parseMonthsSpec = utils.parseMonthsSpec;
+  const dateRangeList = utils.dateRangeList;
+  const isoDate = utils.isoDate;
+
+  if (typeof stayNights !== 'function' ||
+      typeof parseMonthsSpec !== 'function' ||
+      typeof dateRangeList !== 'function' ||
+      typeof isoDate !== 'function') {
+    return { ok:false, error:'utils.js missing required helpers (stayNights, parseMonthsSpec, dateRangeList, isoDate)' };
+  }
+
   const nights = stayNights(check_in, check_out);
   if (nights <= 0) return { ok:false, error:'Invalid date range' };
+
   const seasons = (prop.seasons || []).map(s => ({
     name: s.season_name,
     months: parseMonthsSpec(s.months || ''),
@@ -57,6 +71,7 @@ function priceAndMinStay(prop, check_in, check_out, currency='ZAR') {
     minStay: Number(s.min_stay_nights || 1),
     cleaning: Number(s.cleaning_fee_zar || 0),
   }));
+
   const dates = dateRangeList(check_in, nights);
   let total = 0, maxMinStay = 1;
   for (const d of dates) {
@@ -75,9 +90,11 @@ export default async function handler(req, res) {
     cors(res);
     if (req.method === 'OPTIONS') return res.status(204).end();
 
-    // Accept BOTH GET (query params) and POST (JSON body)
-    const src = req.method === 'GET' ? (req.query || {}) : (req.body || {});
-    if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error:'Method not allowed' });
+    // Accept BOTH GET (query) and POST (JSON)
+    const src = req.method === 'GET' ? (req.query || {}) :
+                req.method === 'POST' ? (req.body || {}) :
+                null;
+    if (!src) return res.status(405).json({ error:'Method not allowed' });
 
     const {
       property_slug,
@@ -92,6 +109,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing property_slug, check_in, check_out' });
     }
 
+    // sanity: nightsBetween must exist
+    if (typeof utils.nightsBetween !== 'function') {
+      return res.status(500).json({ error: 'utils.js missing nightsBetween(); please add it as per availability.js step' });
+    }
+
     const cfg = getConfig();
     const allProps = (cfg.properties || []);
     const prop = allProps.find(p => p.property_slug === property_slug);
@@ -103,7 +125,9 @@ export default async function handler(req, res) {
 
     // Nearby dates (same length)
     const reqStart = new Date(check_in);
-    const reqNights = stayNights(check_in, check_out);
+    const reqNights = utils.stayNights?.(check_in, check_out) || 0;
+    if (reqNights <= 0) return res.status(400).json({ error: 'Invalid date range' });
+
     const startSearch = new Date(reqStart); startSearch.setDate(startSearch.getDate() - Number(radius_back_days));
     const endSearch   = new Date(reqStart); endSearch.setDate(endSearch.getDate() + Number(radius_forward_days));
 
@@ -111,10 +135,12 @@ export default async function handler(req, res) {
     for (let t = startSearch.getTime(); t <= endSearch.getTime(); t += 86400000) {
       const ci = new Date(t).toISOString().slice(0,10);
       const co = new Date(t + reqNights*86400000).toISOString().slice(0,10);
-      const nightsArr = nightsBetween(ci, co);
+      const nightsArr = utils.nightsBetween(ci, co);
       if (nightsArr.some(n => selfBusy.has(n))) continue;
+
       const priced = priceAndMinStay(prop, ci, co, cfg.currency || 'ZAR');
       if (!priced.ok || !priced.minStayOk) continue;
+
       const distanceDays = Math.abs(Math.round((new Date(ci) - reqStart) / 86400000));
       dateSuggestions.push({ check_in:ci, check_out:co, nights:priced.nights, total_price_zar:priced.total, currency:priced.currency, distance_days:distanceDays });
     }
@@ -126,7 +152,7 @@ export default async function handler(req, res) {
       if (p.property_slug === property_slug) continue;
       const { feeds_ok, busyNights } = await loadFeedsForProperty(p);
       if (feeds_ok === 0) continue; // fail-closed
-      const nightsArr = nightsBetween(check_in, check_out);
+      const nightsArr = utils.nightsBetween(check_in, check_out);
       if (nightsArr.some(n => busyNights.has(n))) continue;
       const priced = priceAndMinStay(p, check_in, check_out, cfg.currency || 'ZAR');
       if (!priced.ok || !priced.minStayOk) continue;
