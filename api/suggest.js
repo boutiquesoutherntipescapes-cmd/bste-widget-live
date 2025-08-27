@@ -1,10 +1,12 @@
 import fs from 'fs';
-import * as utils from './utils.js'; // namespace import avoids hard crashes if a function is missing
+import * as utils from './utils.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP for testing – we’ll lock this later
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // small edge cache to smooth spikes
+  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
 }
 
 function getConfig() {
@@ -12,7 +14,10 @@ function getConfig() {
   return JSON.parse(raw.toString());
 }
 
-// version-agnostic node-ical loader
+// --- Simple in-memory cache (persists across warm invocations)
+const ICS_CACHE = globalThis.__BSTE_ICS_CACHE__ || (globalThis.__BSTE_ICS_CACHE__ = new Map());
+const ICS_TTL_MS = 5 * 60 * 1000; // 5 min
+
 async function loadNodeIcal() {
   const mod = await import('node-ical').catch(() => null);
   const lib = mod?.default ?? mod;
@@ -28,38 +33,49 @@ async function loadNodeIcal() {
   return { fromURLCompat };
 }
 
+async function fetchIcsCached(url, fromURLCompat) {
+  const now = Date.now();
+  const entry = ICS_CACHE.get(url);
+  if (entry && (now - entry.t) < ICS_TTL_MS) return entry.data;
+  const data = await fromURLCompat(url);
+  ICS_CACHE.set(url, { t: now, data });
+  return data;
+}
+
 async function loadFeedsForProperty(prop) {
   const urls = Object.values(prop.ical || {}).filter(Boolean);
   if (!urls.length) return { feeds_ok: 0, busyNights: new Set() };
   const { fromURLCompat } = await loadNodeIcal();
+
+  const results = await Promise.all(urls.map(async (url) => {
+    try {
+      const data = await fetchIcsCached(url, fromURLCompat);
+      const events = Object.values(data || {}).filter(e => e && e.type === 'VEVENT');
+      return { ok: true, url, events };
+    } catch (e) {
+      return { ok: false, url, error: String(e), events: [] };
+    }
+  }));
+
   let feeds_ok = 0;
   const busy = new Set();
-  for (const url of urls) {
-    try {
-      const data = await fromURLCompat(url);
-      const events = Object.values(data || {}).filter(e => e && e.type === 'VEVENT');
-      for (const e of events) for (const n of (utils.nightsBetween?.(e.start, e.end) || [])) busy.add(n);
-      feeds_ok++;
-    } catch (_) { /* ignore individual feed failure */ }
+  for (const r of results) {
+    if (!r.ok) continue;
+    feeds_ok++;
+    for (const ev of r.events) {
+      for (const n of (utils.nightsBetween?.(ev.start, ev.end) || [])) busy.add(n);
+    }
   }
   return { feeds_ok, busyNights: busy };
 }
 
 function monthFromDate(d) { return (new Date(d)).getMonth() + 1; }
 
-// Pricing/min-stay using utils if present
 function priceAndMinStay(prop, check_in, check_out, currency='ZAR') {
   const stayNights = utils.stayNights;
   const parseMonthsSpec = utils.parseMonthsSpec;
   const dateRangeList = utils.dateRangeList;
   const isoDate = utils.isoDate;
-
-  if (typeof stayNights !== 'function' ||
-      typeof parseMonthsSpec !== 'function' ||
-      typeof dateRangeList !== 'function' ||
-      typeof isoDate !== 'function') {
-    return { ok:false, error:'utils.js missing required helpers (stayNights, parseMonthsSpec, dateRangeList, isoDate)' };
-  }
 
   const nights = stayNights(check_in, check_out);
   if (nights <= 0) return { ok:false, error:'Invalid date range' };
@@ -90,7 +106,6 @@ export default async function handler(req, res) {
     cors(res);
     if (req.method === 'OPTIONS') return res.status(204).end();
 
-    // Accept BOTH GET (query) and POST (JSON)
     const src = req.method === 'GET' ? (req.query || {}) :
                 req.method === 'POST' ? (req.body || {}) :
                 null;
@@ -99,19 +114,18 @@ export default async function handler(req, res) {
     const {
       property_slug,
       check_in, check_out,
-      radius_back_days = 7,
-      radius_forward_days = 21,
-      max_date_suggestions = 5,
-      max_other_properties = 6
+      // tighter defaults for speed; you can tweak later
+      radius_back_days = 3,
+      radius_forward_days = 12,
+      max_date_suggestions = 4,
+      max_other_properties = 4
     } = src;
 
     if (!property_slug || !check_in || !check_out) {
       return res.status(400).json({ error: 'Missing property_slug, check_in, check_out' });
     }
-
-    // sanity: nightsBetween must exist
     if (typeof utils.nightsBetween !== 'function') {
-      return res.status(500).json({ error: 'utils.js missing nightsBetween(); please add it as per availability.js step' });
+      return res.status(500).json({ error: 'utils.js missing nightsBetween(); please add it' });
     }
 
     const cfg = getConfig();
@@ -123,7 +137,7 @@ export default async function handler(req, res) {
     const { feeds_ok: self_ok, busyNights: selfBusy } = await loadFeedsForProperty(prop);
     if (self_ok === 0) return res.status(503).json({ error: 'All calendar feeds failed for this property' });
 
-    // Nearby dates (same length)
+    // Nearby dates (same length) with early exit
     const reqStart = new Date(check_in);
     const reqNights = utils.stayNights?.(check_in, check_out) || 0;
     if (reqNights <= 0) return res.status(400).json({ error: 'Invalid date range' });
@@ -143,33 +157,38 @@ export default async function handler(req, res) {
 
       const distanceDays = Math.abs(Math.round((new Date(ci) - reqStart) / 86400000));
       dateSuggestions.push({ check_in:ci, check_out:co, nights:priced.nights, total_price_zar:priced.total, currency:priced.currency, distance_days:distanceDays });
+
+      if (dateSuggestions.length >= Number(max_date_suggestions)) break; // early exit
     }
     dateSuggestions.sort((a,b)=>(a.distance_days-b.distance_days)||(a.total_price_zar-b.total_price_zar));
 
-    // Other properties for exact dates
-    const otherProps = [];
-    for (const p of allProps) {
-      if (p.property_slug === property_slug) continue;
-      const { feeds_ok, busyNights } = await loadFeedsForProperty(p);
-      if (feeds_ok === 0) continue; // fail-closed
-      const nightsArr = utils.nightsBetween(check_in, check_out);
-      if (nightsArr.some(n => busyNights.has(n))) continue;
-      const priced = priceAndMinStay(p, check_in, check_out, cfg.currency || 'ZAR');
-      if (!priced.ok || !priced.minStayOk) continue;
-      otherProps.push({
-        property_slug: p.property_slug,
-        display_name: p.display_name || p.property_slug,
-        property_page_url: p.property_page_url || '#',
-        nights: priced.nights,
-        total_price_zar: priced.total,
-        currency: priced.currency
-      });
-    }
-    otherProps.sort((a,b)=>a.total_price_zar-b.total_price_zar);
+    // Other properties (parallel), then trim & sort
+    const othersCandidates = await Promise.all(
+      allProps.filter(p => p.property_slug !== property_slug).map(async (p) => {
+        const { feeds_ok, busyNights } = await loadFeedsForProperty(p);
+        if (feeds_ok === 0) return null; // fail-closed
+        const nightsArr = utils.nightsBetween(check_in, check_out);
+        if (nightsArr.some(n => busyNights.has(n))) return null;
+        const priced = priceAndMinStay(p, check_in, check_out, cfg.currency || 'ZAR');
+        if (!priced.ok || !priced.minStayOk) return null;
+        return {
+          property_slug: p.property_slug,
+          display_name: p.display_name || p.property_slug,
+          property_page_url: p.property_page_url || '#',
+          nights: priced.nights,
+          total_price_zar: priced.total,
+          currency: priced.currency
+        };
+      })
+    );
+
+    const otherProps = (othersCandidates.filter(Boolean))
+      .sort((a,b)=>a.total_price_zar-b.total_price_zar)
+      .slice(0, Number(max_other_properties));
 
     return res.status(200).json({
-      dates: dateSuggestions.slice(0, Number(max_date_suggestions)),
-      other_properties: otherProps.slice(0, Number(max_other_properties))
+      dates: dateSuggestions,
+      other_properties: otherProps
     });
   } catch (err) {
     return res.status(500).json({ error: 'Server error in suggest', detail: String(err) });
