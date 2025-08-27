@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking sent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html,body{height:100%} body{margin:0;display:flex;align-items:center;justify-content:center;
+    font-family:ui-sans-serif,-apple-system,Segoe UI,Roboto;color:#111827;background:#fafafa}
+    .box{background:#fff;border:1px solid #eee;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h3 style="margin:0 0 8px">Thank you</h3>
+    <p style="margin:0;color:#374151">We’ve received your request.</p>
+  </div>
+  <script>
+    // Tell the parent page to close the modal
+    try { window.parent && window.parent.postMessage({ type: 'bste:form-submitted' }, '*'); } catch(e){}
+  </script>
+</body>
+</html>
