@@ -21,21 +21,48 @@
     .bste-prop-name{font-weight:600;}
     .bste-prop-actions{display:flex; gap:8px;}
     .bste-link{padding:8px 12px; border:1px solid #e0b98f; border-radius:9999px; background:#fff; cursor:pointer; font-size:13px; text-decoration:none; color:#111827;}
+    /* Popup modal */
+    .bste-modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;}
+    .bste-modal{background:#fff; border-radius:16px; width:min(720px,96vw); height:min(80vh,840px); position:relative; box-shadow:0 25px 70px rgba(0,0,0,.25); overflow:hidden}
+    .bste-modal iframe{width:100%; height:100%; border:0;}
+    .bste-modal-close{position:absolute; top:6px; right:10px; font-size:22px; border:0; background:transparent; cursor:pointer; line-height:1}
     @media (max-width: 900px){ .bste-row{ grid-template-columns: 1fr 1fr } }
     @media (max-width: 560px){ .bste-row{ grid-template-columns: 1fr } }
   `;
+
+  // one-time style inject for modal too
+  (function(){ const s=document.createElement('style'); s.innerHTML=WIDGET_CSS; document.head.appendChild(s); })();
 
   function el(tag, cls, html) { const e=document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; }
   function getParam(k){ return new URLSearchParams(location.search).get(k) || ""; }
   function findMounts(){ return Array.from(document.querySelectorAll('[data-bste-widget]')); }
 
+  // Simple popup modal with iframe
+  function openBookingModal(url){
+    const overlay = el('div','bste-modal-overlay');
+    const modal = el('div','bste-modal');
+    const close = el('button','bste-modal-close','×');
+    const frame = document.createElement('iframe');
+    frame.src = url;
+    close.addEventListener('click', ()=> document.body.removeChild(overlay));
+    overlay.addEventListener('click', (e)=> { if (e.target === overlay) document.body.removeChild(overlay); });
+    modal.appendChild(close); modal.appendChild(frame); overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    // listen for the bridge message to close
+    function onMsg(ev){
+      // Only trust our Vercel bridge page
+      if (typeof ev.data === 'object' && ev.data && ev.data.type === 'bste:form-submitted') {
+        try { document.body.removeChild(overlay); } catch(e){}
+        window.removeEventListener('message', onMsg);
+      }
+    }
+    window.addEventListener('message', onMsg);
+  }
+
   function render(mount){
     const property = mount.getAttribute('data-property');
     const apiBase = mount.getAttribute('data-api') || '';
     const bookingUrlBase = mount.getAttribute('data-booking-url') || '/booking';
-
-    const style = document.createElement('style'); style.innerHTML = WIDGET_CSS;
-    mount.appendChild(style);
 
     const card = el('div','bste-card');
     const row = el('div','bste-row');
@@ -66,17 +93,11 @@
     card.appendChild(status); card.appendChild(price); card.appendChild(err);
     card.appendChild(suggWrap); card.appendChild(altPropsWrap);
 
-    const bookWrap = el('div','bste-row');
-    const bookBtn = el('button','bste-btn','Book now'); bookBtn.style.display='none';
+    const bookWrap = el('div','bste-row'); const bookBtn = el('button','bste-btn','Book now'); bookBtn.style.display='none';
     bookWrap.appendChild(bookBtn); card.appendChild(bookWrap);
-
     mount.appendChild(card);
 
-    function clearUI(){
-      err.textContent=''; price.textContent=''; status.textContent='';
-      suggWrap.innerHTML=''; altPropsWrap.innerHTML='';
-      bookBtn.style.display='none';
-    }
+    function clearUI(){ err.textContent=''; price.textContent=''; status.textContent=''; suggWrap.innerHTML=''; altPropsWrap.innerHTML=''; bookBtn.style.display='none'; }
 
     function renderSuggestions(list){
       if (!list || !list.length) return;
@@ -108,10 +129,7 @@
         const actions = el('div','bste-prop-actions');
         const view = el('a','bste-link','View property');
         view.target = '_self';
-        // pass through the same dates & guests so the destination page pre-fills its widget
-        view.href = addParams(p.property_page_url || '#', {
-          check_in: inpIn.value, check_out: inpOut.value, guests: inpG.value
-        });
+        view.href = addParams(p.property_page_url || '#', { check_in: inpIn.value, check_out: inpOut.value, guests: inpG.value });
         actions.appendChild(view);
         row.appendChild(actions);
         altPropsWrap.appendChild(row);
@@ -130,8 +148,7 @@
 
         if (!avail.available){
           status.innerHTML = '<span class="bste-err">Not available for those dates.</span>';
-
-          // Suggestions via GET (avoids CORS preflight)
+          // Suggestions via GET (fast)
           const qs = new URLSearchParams({ property_slug: property, check_in: ci, check_out: co }).toString();
           const sres = await fetch(`${apiBase}/api/suggest?${qs}`);
           const sjson = await sres.json();
@@ -161,8 +178,24 @@
 
         bookBtn.style.display='inline-block';
         bookBtn.onclick = () => {
-          const url = bookingUrlBase + `?property=${encodeURIComponent(property)}&check_in=${ci}&check_out=${co}&guests=${encodeURIComponent(inpG.value)}&total=${quote.total_price_zar}`;
-          window.location.href = url;
+          // Build the GHL form URL with all params
+          const params = {
+            property: property,
+            check_in: ci,
+            check_out: co,
+            guests: inpG.value,
+            nights: quote.nights,
+            total: quote.total_price_zar,
+            currency: quote.currency || 'ZAR'
+          };
+          const target = addParams(bookingUrlBase, params);
+
+          // If data-booking-url is a full URL (GHL), open modal. Otherwise navigate.
+          if (/^https?:\/\//i.test(bookingUrlBase)){
+            openBookingModal(target);
+          } else {
+            window.location.href = target; // fallback: normal page
+          }
         };
       }catch(e){ err.textContent = e.message; }
     }
