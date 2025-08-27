@@ -26,9 +26,7 @@
   `;
 
   function el(tag, cls, html) { const e=document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; }
-  function $qs(sel, root=document){ return root.querySelector(sel); }
   function getParam(k){ return new URLSearchParams(location.search).get(k) || ""; }
-
   function findMounts(){ return Array.from(document.querySelectorAll('[data-bste-widget]')); }
 
   function render(mount){
@@ -62,14 +60,16 @@
     const price = el('div','bste-price','');
     const err = el('div','bste-err','');
 
-    const suggWrap = el('div','bste-suggest','');            // nearby dates
-    const altPropsWrap = el('div','bste-altprops','');       // other properties
+    const suggWrap = el('div','bste-suggest','');      // nearby dates
+    const altPropsWrap = el('div','bste-altprops',''); // other properties
 
     card.appendChild(status); card.appendChild(price); card.appendChild(err);
     card.appendChild(suggWrap); card.appendChild(altPropsWrap);
 
-    const bookWrap = el('div','bste-row'); const bookBtn = el('button','bste-btn','Book now'); bookBtn.style.display='none';
+    const bookWrap = el('div','bste-row');
+    const bookBtn = el('button','bste-btn','Book now'); bookBtn.style.display='none';
     bookWrap.appendChild(bookBtn); card.appendChild(bookWrap);
+
     mount.appendChild(card);
 
     function clearUI(){
@@ -108,7 +108,7 @@
         const actions = el('div','bste-prop-actions');
         const view = el('a','bste-link','View property');
         view.target = '_self';
-        // pass through the same dates & guests so that page pre-fills its widget
+        // pass through the same dates & guests so the destination page pre-fills its widget
         view.href = addParams(p.property_page_url || '#', {
           check_in: inpIn.value, check_out: inpOut.value, guests: inpG.value
         });
@@ -123,17 +123,17 @@
       const ci = inpIn.value; const co = inpOut.value;
       if (!ci || !co){ err.textContent='Select check-in and check-out.'; return; }
       try{
+        // Availability
         const a = await fetch(`${apiBase}/api/availability?property_slug=${encodeURIComponent(property)}&check_in=${ci}&check_out=${co}`);
         const avail = await a.json();
         if (!a.ok) throw new Error(avail.error || 'Availability error');
 
         if (!avail.available){
           status.innerHTML = '<span class="bste-err">Not available for those dates.</span>';
-          // Ask server for BOTH nearby dates and other properties
-          const sres = await fetch(`${apiBase}/api/suggest`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ property_slug: property, check_in: ci, check_out: co })
-          });
+
+          // Suggestions via GET (avoids CORS preflight)
+          const qs = new URLSearchParams({ property_slug: property, check_in: ci, check_out: co }).toString();
+          const sres = await fetch(`${apiBase}/api/suggest?${qs}`);
           const sjson = await sres.json();
           if (sres.ok){
             renderSuggestions(sjson.dates || []);
@@ -144,6 +144,7 @@
 
         status.innerHTML = '<span class="bste-ok">Good news — available.</span>';
 
+        // Quote
         const qres = await fetch(`${apiBase}/api/quote`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({property_slug: property, check_in: ci, check_out: co})
@@ -166,18 +167,15 @@
       }catch(e){ err.textContent = e.message; }
     }
 
-    // Prefill from URL (so other property links can pre-populate dates)
+    // Prefill from URL (so cross-property links can pre-populate dates)
     const urlIn  = getParam('check_in');  if (urlIn)  inpIn.value = urlIn;
     const urlOut = getParam('check_out'); if (urlOut) inpOut.value = urlOut;
     const urlG   = getParam('guests');    if (urlG)   inpG.value = urlG;
 
-    const styleTag = document.createElement('style'); styleTag.innerHTML = WIDGET_CSS;
     btn.addEventListener('click', check);
 
-    // Auto-run if both dates present in URL (nice for cross-property flow)
+    // Auto-run if dates are present in the URL
     if (inpIn.value && inpOut.value) { setTimeout(check, 0); }
-
-    mount.appendChild(card);
   }
 
   function init(){ findMounts().forEach(render); }
