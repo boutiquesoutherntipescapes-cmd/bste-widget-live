@@ -7,16 +7,5 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
-  ],
-  "headers": [
-    {
-      "source": "/master-embed.html",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://www.boutiquesoutherntipescapes.com https://*.squarespace.com"
-        }
-      ]
-    }
   ]
 }
