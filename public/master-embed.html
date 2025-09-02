@@ -145,5 +145,19 @@
     if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
   })();
   </script>
+  <style>
+  /* Final overrides loaded AFTER the widget script, so they always win */
+  html, body { background: transparent !important; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 !important; }
+
+  /* Nuke the big card frame around the inputs */
+  .bste-m-card {
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+</style>
 </body>
 </html>
