@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BSTE Master Search</title>
+  <style>
+    :root{--card-bg:#fff}
+    html,body{margin:0;padding:0;background:#fafafa;}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px;}
+    .brand{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:#111827;margin:0 0 10px 0;font-weight:700;font-size:18px;}
+  </style>
+  <!-- Load the same script this page will run -->
+  <script defer src="/bste-master.js"></script>
+  <script>
+    // Pass ?api=... in the URL so this page can point at preview or production
+    function qp(k){ return new URLSearchParams(location.search).get(k) || ""; }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const api = qp('api') || location.origin;
+      const intro = qp('intro') || 'Search all Boutique Southern Tip Escapes homes by date.';
+      // Create the mount div programmatically to avoid any editor stripping
+      const mount = document.createElement('div');
+      mount.setAttribute('data-bste-master','');
+      mount.setAttribute('data-api', api);
+      mount.setAttribute('data-intro', intro);
+      document.getElementById('mount-here').appendChild(mount);
+    });
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <div id="mount-here"></div>
+  </div>
+</body>
+</html>
