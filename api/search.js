@@ -1,4 +1,4 @@
-// /api/search.js — returns all available properties for given dates, with pricing
+// /api/search.js — returns all available properties for given dates, with pricing (+ thumbnails)
 import fs from 'fs';
 import * as utils from './utils.js';
 
@@ -130,10 +130,12 @@ export default async function handler(req, res) {
       const priced = priceAndMinStay(p, check_in, check_out, currency);
       if (!priced.ok || !priced.minStayOk) return null;
 
+      // >>> add thumbnail_url here <<<
       return {
         property_slug: p.property_slug,
         display_name: p.display_name || p.property_slug,
         property_page_url: p.property_page_url || '#',
+        thumbnail_url: p.thumbnail_url || null,
         nights: priced.nights,
         total_price_zar: priced.total,
         currency: priced.currency
