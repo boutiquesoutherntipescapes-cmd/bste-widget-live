@@ -10,6 +10,34 @@
     .wrap{max-width:1200px;margin:0 auto;padding:0}
     /* Remove the card frame inside the widget */
     .bste-m-card{border:0; box-shadow:none; border-radius:0; background:transparent; padding:0}
+
+    /* Widget styles */
+    .bste-m-card{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;}
+    .bste-m-row{display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:18px; align-items:end}
+    .bste-m-field{display:flex; flex-direction:column; gap:6px; min-width:160px}
+    .bste-m-field label{font-size:12px; opacity:0.7}
+    .bste-m-input{padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:12px; background:#f8f8f8}
+    .bste-m-btn{padding:10px 16px; border-radius:12px; border:1px solid #e0b98f; cursor:pointer}
+    .bste-m-primary{background:rgb(245,194,148); color:#0f172a}
+    .bste-m-note{font-size:12px; opacity:0.85; margin-top:10px}
+    .bste-m-err{font-size:12px; color:#b91c1c; margin-top:8px}
+    .bste-m-grid{margin-top:14px; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px}
+    .bste-m-item{border:1px solid #e5e7eb; border-radius:16px; padding:12px; background:#fff; display:grid; grid-template-columns: 160px 1fr; gap:12px; align-items:center}
+    .bste-m-thumb{width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; border-radius:12px; background:#f3f4f6}
+    .bste-m-col{display:flex; flex-direction:column; gap:6px}
+    .bste-m-title{font-weight:700}
+    .bste-m-price{font-weight:700; font-size:16px}
+    .bste-m-actions{margin-top:auto; display:flex; gap:8px; flex-wrap:wrap}
+    .bste-m-link{padding:8px 12px; border:1px solid #e0b98f; border-radius:9999px; background:#fff; cursor:pointer; font-size:13px; text-decoration:none; color:#111827;}
+    .bste-m-empty{font-size:14px; color:#374151; border:1px dashed #e5e7eb; border-radius:12px; padding:14px; text-align:center; background:#fff}
+    .bste-m-loading{font-size:13px; color:#374151}
+    @media (max-width: 1100px){ .bste-m-grid{ grid-template-columns: repeat(2,minmax(0,1fr)) } }
+    @media (max-width: 700px){
+      .bste-m-row{ grid-template-columns: 1fr 1fr }
+      .bste-m-grid{ grid-template-columns: 1fr }
+      .bste-m-item{ grid-template-columns: 1fr; }
+      .bste-m-thumb{ aspect-ratio: 16/10; }
+    }
   </style>
 </head>
 <body>
@@ -30,39 +58,10 @@
     })();
   </script>
 
-  <!-- INLINE the latest master widget (thumbnail-ready) -->
+  <!-- Master widget (opens property links in TOP window) -->
   <script>
   (function(){
-    const CSS = `
-      .bste-m-card{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;}
-      .bste-m-row{display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:18px; align-items:end}
-      .bste-m-field{display:flex; flex-direction:column; gap:6px; min-width:160px}
-      .bste-m-field label{font-size:12px; opacity:0.7}
-      .bste-m-input{padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:12px; background:#f8f8f8}
-      .bste-m-btn{padding:10px 16px; border-radius:12px; border:1px solid #e0b98f; cursor:pointer}
-      .bste-m-primary{background:rgb(245,194,148); color:#0f172a}
-      .bste-m-note{font-size:12px; opacity:0.85; margin-top:10px}
-      .bste-m-err{font-size:12px; color:#b91c1c; margin-top:8px}
-      .bste-m-grid{margin-top:14px; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px}
-      /* Card with thumbnail column */
-      .bste-m-item{border:1px solid #e5e7eb; border-radius:16px; padding:12px; background:#fff; display:grid; grid-template-columns: 160px 1fr; gap:12px; align-items:center}
-      .bste-m-thumb{width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; border-radius:12px; background:#f3f4f6}
-      .bste-m-col{display:flex; flex-direction:column; gap:6px}
-      .bste-m-title{font-weight:700}
-      .bste-m-price{font-weight:700; font-size:16px}
-      .bste-m-actions{margin-top:auto; display:flex; gap:8px; flex-wrap:wrap}
-      .bste-m-link{padding:8px 12px; border:1px solid #e0b98f; border-radius:9999px; background:#fff; cursor:pointer; font-size:13px; text-decoration:none; color:#111827;}
-      .bste-m-empty{font-size:14px; color:#374151; border:1px dashed #e5e7eb; border-radius:12px; padding:14px; text-align:center; background:#fff}
-      .bste-m-loading{font-size:13px; color:#374151}
-      @media (max-width: 1100px){ .bste-m-grid{ grid-template-columns: repeat(2,minmax(0,1fr)) } }
-      @media (max-width: 700px){
-        .bste-m-row{ grid-template-columns: 1fr 1fr }
-        .bste-m-grid{ grid-template-columns: 1fr }
-        .bste-m-item{ grid-template-columns: 1fr; }
-        .bste-m-thumb{ aspect-ratio: 16/10; }
-      }
-    `;
-    (function(){ const s=document.createElement('style'); s.innerHTML=CSS; document.head.appendChild(s); })();
+    const CSS = ``; // styles already in <style> above
 
     function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; }
     function getParam(k){ return new URLSearchParams(location.search).get(k) || ""; }
@@ -135,9 +134,18 @@
             col.appendChild(el('div','bste-m-price', fmtCurrency(p.total_price_zar, p.currency)));
 
             const actions = el('div','bste-m-actions');
+
+            // View link — open at TOP (outside the iframe)
             const view = el('a','bste-m-link','View property');
-            view.href = addParams(p.property_page_url || '#', { check_in: json.check_in, check_out: json.check_out, guests: json.guests });
-            view.target = '_self';
+            view.href = addParams(p.property_page_url || '#', {
+              check_in: json.check_in, check_out: json.check_out, guests: json.guests
+            });
+            view.target = '_top';
+            // fallback in case some sandbox ignores target
+            view.addEventListener('click', function(){
+              try{ if (window.top && window.top !== window) { setTimeout(()=>{ try{ window.top.location.href = this.href; }catch(_){} }, 0); } }catch(_){}
+            });
+
             actions.appendChild(view);
             col.appendChild(actions);
 
