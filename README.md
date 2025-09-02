@@ -18,3 +18,4 @@ Your data has been merged from the two CSVs into `config/properties.json`.
        data-booking-url="/booking"></div>
 
 Replace `your-property-slug` with one from `config/properties.json`.
+
