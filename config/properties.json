@@ -15,7 +15,7 @@
       "seasons": [
         {
           "season_name": "Low Season",
-          "months": "February,  March, April, May, June, August, October, November,",
+          "months": "February, March, April, May, June, August, October, November",
           "nightly_rate_zar": 6500,
           "min_stay_nights": 1,
           "cleaning_fee_zar": 800
@@ -49,7 +49,7 @@
       "seasons": [
         {
           "season_name": "Low Season",
-          "months": "February,  March, April, May, June, August, October, November,",
+          "months": "February, March, April, May, June, August, October, November",
           "nightly_rate_zar": 5500,
           "min_stay_nights": 2,
           "cleaning_fee_zar": 800
@@ -83,7 +83,7 @@
       "seasons": [
         {
           "season_name": "Low Season",
-          "months": "February,  March, April, May, June, August, October, November,",
+          "months": "February, March, April, May, June, August, October, November",
           "nightly_rate_zar": 5500,
           "min_stay_nights": 2,
           "cleaning_fee_zar": 800
@@ -116,7 +116,7 @@
       "seasons": [
         {
           "season_name": "Low Season",
-          "months": "February,  March, April, May, June, August, October, November,",
+          "months": "February, March, April, May, June, August, October, November",
           "nightly_rate_zar": 7000,
           "min_stay_nights": 1,
           "cleaning_fee_zar": 0
@@ -136,41 +136,40 @@
           "cleaning_fee_zar": 0
         }
       ]
-    }
-  ]
-},
-{
-  "property_slug": "searenity-struisbaai",
-  "display_name": "Sea'renity",
-  "property_page_url": "https://www.boutiquesoutherntipescapes.com/searenity-langezandt-cottage",
-
-  "ical": {
-    "airbnb": "https://www.airbnb.ca/calendar/ical/1524040803889562346.ics?s=184490319a65c1f1dcf0f0717211c09b",
-    "bookingcom": "https://ical.booking.com/v1/export?t=13795329-2dfd-4dcb-b047-bf085590dc21",
-    "lekkeslaap": "0"
-  },
-
-  "seasons": [
-    {
-      "season_name": "Low Season",
-      "months": "February, March, April, May, June, August, October, November",
-      "nightly_rate_zar": 4500,
-      "min_stay_nights": 2,
-      "cleaning_fee_zar": 800
     },
     {
-      "season_name": "Shoulder Season",
-      "months": "July, September",
-      "nightly_rate_zar": 5000,
-      "min_stay_nights": 3,
-      "cleaning_fee_zar": 800
-    },
-    {
-      "season_name": "High Season",
-      "months": "December, January",
-      "nightly_rate_zar": 6500,
-      "min_stay_nights": 5,
-      "cleaning_fee_zar": 800
+      "property_slug": "searenity-struisbaai",
+      "display_name": "Sea'renity",
+      "property_page_url": "https://www.boutiquesoutherntipescapes.com/searenity-langezandt-cottage",
+      "thumbnail_url": "/img/searenity-struisbaai.jpg",
+      "ical": {
+        "airbnb": "https://www.airbnb.ca/calendar/ical/1524040803889562346.ics?s=184490319a65c1f1dcf0f0717211c09b",
+        "bookingcom": "https://ical.booking.com/v1/export?t=13795329-2dfd-4dcb-b047-bf085590dc21",
+        "lekkeslaap": ""
+      },
+      "seasons": [
+        {
+          "season_name": "Low Season",
+          "months": "February, March, April, May, June, August, October, November",
+          "nightly_rate_zar": 4500,
+          "min_stay_nights": 2,
+          "cleaning_fee_zar": 800
+        },
+        {
+          "season_name": "Shoulder Season",
+          "months": "July, September",
+          "nightly_rate_zar": 5000,
+          "min_stay_nights": 3,
+          "cleaning_fee_zar": 800
+        },
+        {
+          "season_name": "High Season",
+          "months": "December, January",
+          "nightly_rate_zar": 6500,
+          "min_stay_nights": 5,
+          "cleaning_fee_zar": 800
+        }
+      ]
     }
   ]
 }
