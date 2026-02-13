@@ -7,9 +7,17 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// ✅ Support BOTH config formats:
+// 1) Array-only: [ {prop}, {prop} ]
+// 2) Object: { currency: 'ZAR', properties: [ {prop}, ... ] }
 function getConfig() {
-  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url));
-  return JSON.parse(raw.toString());
+  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url), 'utf8');
+  const parsed = JSON.parse(raw);
+
+  if (Array.isArray(parsed)) {
+    return { currency: 'ZAR', properties: parsed };
+  }
+  return parsed || { currency: 'ZAR', properties: [] };
 }
 
 function monthFromDate(d) { return (new Date(d)).getMonth() + 1; }
