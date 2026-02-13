@@ -1,41 +1,4 @@
-{
-  "timezone": "Johannesburg South Africa",
-  "currency": "ZAR",
-  "properties": [
-    {
-      "property_slug": "sonvanger-struisbaai",
-      "display_name": "Sonvanger Villa",
-      "property_page_url": "https://www.boutiquesoutherntipescapes.com/sonvanger-struisbaai",
-      "thumbnail_url": "/img/sonvanger.jpg",
-      "ical": {
-        "airbnb": "https://www.airbnb.co.za/calendar/ical/1414410889105754788.ics?s=b64a3fc76b01c0fa0c81d8deeb14dea4",
-        "bookingcom": "https://ical.booking.com/v1/export?t=a929966e-8874-4e46-b017-dfe8f0df85f3",
-        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=cVo4cGgzVFZuNlJJRWxrRFgwa05RUT09"
-      },
-      "seasons": [
-        {
-          "season_name": "Low Season",
-          "months": "February, March, April, May, June, August, October, November",
-          "nightly_rate_zar": 6500,
-          "min_stay_nights": 1,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "Shoulder Season",
-          "months": "July, September",
-          "nightly_rate_zar": 7500,
-          "min_stay_nights": 2,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "High Season",
-          "months": "December, January",
-          "nightly_rate_zar": 9500,
-          "min_stay_nights": 5,
-          "cleaning_fee_zar": 800
-        }
-      ]
-    },
+
     {
       "property_slug": "legacy-suiderstrand",
       "display_name": "Legacy Beach Villa",
