@@ -1,5 +1,4 @@
-
-    {
+ {
       "property_slug": "legacy-suiderstrand",
       "display_name": "Legacy Beach Villa",
       "property_page_url": "https://www.boutiquesoutherntipescapes.com/legacy-suiderstrand",
@@ -13,7 +12,7 @@
         {
           "season_name": "Low Season",
           "months": "February, March, April, May, June, August, October, November",
-          "nightly_rate_zar": 5500,
+          "nightly_rate_zar": 5800,
           "min_stay_nights": 2,
           "cleaning_fee_zar": 800
         },
@@ -21,40 +20,6 @@
           "season_name": "Shoulder Season",
           "months": "July, September",
           "nightly_rate_zar": 6500,
-          "min_stay_nights": 2,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "High Season",
-          "months": "December, January",
-          "nightly_rate_zar": 9500,
-          "min_stay_nights": 5,
-          "cleaning_fee_zar": 800
-        }
-      ]
-    },
-    {
-      "property_slug": "agape-agulhas",
-      "display_name": "Agape Villa",
-      "property_page_url": "https://www.boutiquesoutherntipescapes.com/agape-agulhas",
-      "thumbnail_url": "/img/agape.jpg",
-      "ical": {
-        "airbnb": "https://www.airbnb.co.za/calendar/ical/1461510969026881676.ics?s=a512e1b11c5f1fec8632313ea2b2e255",
-        "bookingcom": "https://ical.booking.com/v1/export?t=60a2df21-ffee-410e-8bd4-af4d92effbd1",
-        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=aVZ3QjdxNktWTFJjbHNYeHpwaG9vUT09"
-      },
-      "seasons": [
-        {
-          "season_name": "Low Season",
-          "months": "February, March, April, May, June, August, October, November",
-          "nightly_rate_zar": 5500,
-          "min_stay_nights": 2,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "Shoulder Season",
-          "months": "July, September",
-          "nightly_rate_zar": 7000,
           "min_stay_nights": 2,
           "cleaning_fee_zar": 800
         },
@@ -66,73 +31,4 @@
           "cleaning_fee_zar": 800
         }
       ]
-    },
-    {
-      "property_slug": "despacito-struisbaai",
-      "display_name": "Despacito",
-      "property_page_url": "https://www.boutiquesoutherntipescapes.com/despacito-struisbaai",
-      "thumbnail_url": "/img/despacito.jpg",
-      "ical": {
-        "bookingcom": "https://ical.booking.com/v1/export?t=6c86115e-20dc-4340-a7ec-0d10e4f680e7",
-        "lekkeslaap": "https://www.lekkeslaap.co.za/suppliers/icalendar.ics?t=ZUx0S1MwYmFxU0ZmVzZpK0pIZVhYZz09"
-      },
-      "seasons": [
-        {
-          "season_name": "Low Season",
-          "months": "February, March, April, May, June, August, October, November",
-          "nightly_rate_zar": 7000,
-          "min_stay_nights": 1,
-          "cleaning_fee_zar": 0
-        },
-        {
-          "season_name": "Shoulder Season",
-          "months": "July, September",
-          "nightly_rate_zar": 10000,
-          "min_stay_nights": 2,
-          "cleaning_fee_zar": 0
-        },
-        {
-          "season_name": "High Season",
-          "months": "December, January",
-          "nightly_rate_zar": 13000,
-          "min_stay_nights": 3,
-          "cleaning_fee_zar": 0
-        }
-      ]
-    },
-    {
-      "property_slug": "searenity-struisbaai",
-      "display_name": "Sea'renity",
-      "property_page_url": "https://www.boutiquesoutherntipescapes.com/searenity-langezandt-cottage",
-      "thumbnail_url": "/img/searenity-struisbaai.jpg",
-      "ical": {
-        "airbnb": "https://www.airbnb.ca/calendar/ical/1524040803889562346.ics?s=184490319a65c1f1dcf0f0717211c09b",
-        "bookingcom": "https://ical.booking.com/v1/export?t=13795329-2dfd-4dcb-b047-bf085590dc21",
-        "lekkeslaap": ""
-      },
-      "seasons": [
-        {
-          "season_name": "Low Season",
-          "months": "February, March, April, May, June, August, October, November",
-          "nightly_rate_zar": 4500,
-          "min_stay_nights": 2,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "Shoulder Season",
-          "months": "July, September",
-          "nightly_rate_zar": 5000,
-          "min_stay_nights": 3,
-          "cleaning_fee_zar": 800
-        },
-        {
-          "season_name": "High Season",
-          "months": "December, January",
-          "nightly_rate_zar": 6500,
-          "min_stay_nights": 5,
-          "cleaning_fee_zar": 800
-        }
-      ]
     }
-  ]
-}
