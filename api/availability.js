@@ -7,9 +7,17 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// ✅ Support BOTH config formats:
+// 1) Array-only: [ {prop}, {prop} ]
+// 2) Object: { properties: [ {prop}, ... ] }
 function getConfig() {
-  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url));
-  return JSON.parse(raw.toString());
+  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url), 'utf8');
+  const parsed = JSON.parse(raw);
+
+  if (Array.isArray(parsed)) {
+    return { properties: parsed };
+  }
+  return parsed || { properties: [] };
 }
 
 // version-agnostic node-ical loader
@@ -64,7 +72,10 @@ export default async function handler(req, res) {
     const loaded = await Promise.all(urls.map(loadFeed));
     const okCount = loaded.filter(f => f.ok).length;
     if (okCount === 0) {
-      return res.status(503).json({ error: 'All calendar feeds failed to load', feeds: loaded.map(f => ({ url: f.url, ok: f.ok, error: f.error })) });
+      return res.status(503).json({
+        error: 'All calendar feeds failed to load',
+        feeds: loaded.map(f => ({ url: f.url, ok: f.ok, error: f.error }))
+      });
     }
 
     let busy = [];
