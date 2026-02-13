@@ -58,4 +58,11 @@
       "cleaning_fee_zar": 1500
     },
     {
-      "season_name": "Hi_
+      "season_name": "High Season",
+      "months": "December, January",
+      "nightly_rate_zar": 13500,
+      "min_stay_nights": 7,
+      "cleaning_fee_zar": 1500
+    }
+  ]
+}
