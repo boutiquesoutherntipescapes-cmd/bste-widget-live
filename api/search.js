@@ -10,9 +10,20 @@ function cors(res) {
   res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
 }
 
+// ✅ Make config loader support BOTH formats:
+// 1) Array-only: [ {prop}, {prop} ]
+// 2) Object: { currency: 'ZAR', properties: [ {prop}, ... ] }
 function getConfig() {
-  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url));
-  return JSON.parse(raw.toString());
+  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url), 'utf8');
+  const parsed = JSON.parse(raw);
+
+  // If file is an array, wrap it into the expected shape.
+  if (Array.isArray(parsed)) {
+    return { currency: 'ZAR', properties: parsed };
+  }
+
+  // If file is an object, assume it's already in the expected shape.
+  return parsed || { currency: 'ZAR', properties: [] };
 }
 
 // ---------- ICS loader with in-memory cache (5 min) ----------
@@ -130,7 +141,6 @@ export default async function handler(req, res) {
       const priced = priceAndMinStay(p, check_in, check_out, currency);
       if (!priced.ok || !priced.minStayOk) return null;
 
-      // >>> add thumbnail_url here <<<
       return {
         property_slug: p.property_slug,
         display_name: p.display_name || p.property_slug,
