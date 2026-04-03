@@ -66,5 +66,39 @@
         "cleaning_fee_zar": 1500
       }
     ]
+  },
+  {
+    "property_slug": "kalay-ridge-villa-struisbaai",
+    "display_name": "Kalay Ridge Villa",
+    "property_page_url": "https://www.boutiquesoutherntipescapes.com/kalay-ridge-villa-struisbaai",
+    "thumbnail_url": "/img/kalay-ridge-villa-struisbaai.jpg",
+    "ical": {
+      "airbnb": "https://www.airbnb.co.za/calendar/ical/1643419884600668401.ics?t=570d714e63ba4a8cbe8d0f44c77414a1",
+      "bookingcom": "https://ical.booking.com/v1/export?t=b0b96431-17ce-4295-a1ed-db4ce2befe1d",
+      "lekkeslaap": ""
+    },
+    "seasons": [
+      {
+        "season_name": "Low Season",
+        "months": "February, March, April, May, June, August, October, November",
+        "nightly_rate_zar": 6500,
+        "min_stay_nights": 2,
+        "cleaning_fee_zar": 1000
+      },
+      {
+        "season_name": "Shoulder Season",
+        "months": "July, September",
+        "nightly_rate_zar": 7500,
+        "min_stay_nights": 3,
+        "cleaning_fee_zar": 1000
+      },
+      {
+        "season_name": "High Season",
+        "months": "December, January",
+        "nightly_rate_zar": 8000,
+        "min_stay_nights": 10,
+        "cleaning_fee_zar": 1000
+      }
+    ]
   }
 ]
