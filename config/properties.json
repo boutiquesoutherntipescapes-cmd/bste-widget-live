@@ -13,23 +13,23 @@
       {
         "season_name": "Low Season",
         "months": "February, March, April, May, June, July, August, October, November",
-        "nightly_rate_zar": 5800,
+        "nightly_rate_zar": 6000,
         "min_stay_nights": 2,
-        "cleaning_fee_zar": 800
+        "cleaning_fee_zar": 1000
       },
       {
         "season_name": "Shoulder Season",
         "months": "September",
-        "nightly_rate_zar": 6500,
-        "min_stay_nights": 2,
-        "cleaning_fee_zar": 800
+        "nightly_rate_zar": 7000,
+        "min_stay_nights": 3,
+        "cleaning_fee_zar": 1000
       },
       {
         "season_name": "High Season",
         "months": "December, January",
-        "nightly_rate_zar": 8500,
-        "min_stay_nights": 5,
-        "cleaning_fee_zar": 800
+        "nightly_rate_zar": 8000,
+        "min_stay_nights": 7,
+        "cleaning_fee_zar": 1000
       }
     ]
   },
@@ -47,14 +47,14 @@
       {
         "season_name": "Low Season",
         "months": "February, March, April, May, June, July, August, October, November",
-        "nightly_rate_zar": 6500,
+        "nightly_rate_zar": 6000,
         "min_stay_nights": 2,
         "cleaning_fee_zar": 1000
       },
       {
         "season_name": "Shoulder Season",
         "months": "September",
-        "nightly_rate_zar": 7500,
+        "nightly_rate_zar": 7000,
         "min_stay_nights": 3,
         "cleaning_fee_zar": 1000
       },
@@ -62,7 +62,7 @@
         "season_name": "High Season",
         "months": "December, January",
         "nightly_rate_zar": 8000,
-        "min_stay_nights": 10,
+        "min_stay_nights": 7,
         "cleaning_fee_zar": 1000
       }
     ]
