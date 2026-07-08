@@ -1,13 +1,14 @@
 // /api/search.js — returns all available properties for given dates, with pricing (+ thumbnails)
+// Also respects owner blocks from Supabase.
 import fs from 'fs';
 import * as utils from './utils.js';
 
-// ---------- CORS + small edge cache ----------
+// ---------- CORS ----------
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*'); // lock to your domain later
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+  res.setHeader('Cache-Control', 'no-store');
 }
 
 // ✅ Make config loader support BOTH formats:
@@ -22,6 +23,79 @@ function getConfig() {
   }
 
   return parsed || { currency: 'ZAR', properties: [] };
+}
+
+// ---------- Supabase owner blocks ----------
+function cleanSupabaseUrl(url) {
+  return String(url || '')
+    .trim()
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/+$/g, '');
+}
+
+function getSupabase() {
+  const url = cleanSupabaseUrl(process.env.SUPABASE_URL);
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    return null;
+  }
+
+  return { url, key };
+}
+
+async function supabaseFetch(path) {
+  const supabase = getSupabase();
+
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const response = await fetch(`${supabase.url}/rest/v1/${path}`, {
+      headers: {
+        apikey: supabase.key,
+        Authorization: `Bearer ${supabase.key}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const text = await response.text();
+
+    if (!text) {
+      return [];
+    }
+
+    return JSON.parse(text);
+
+  } catch {
+    return [];
+  }
+}
+
+async function loadOwnerBlockNights(propertySlug) {
+  const rows = await supabaseFetch(
+    `owner_blocks?select=id,start_date,end_date,block_type,note&property_slug=eq.${encodeURIComponent(propertySlug)}&order=start_date.asc`
+  );
+
+  const nights = new Set();
+
+  for (const row of rows || []) {
+    const blockNights = utils.nightsBetween(row.start_date, row.end_date);
+
+    for (const night of blockNights) {
+      nights.add(night);
+    }
+  }
+
+  return {
+    owner_blocks_count: (rows || []).length,
+    ownerBlockNights: nights
+  };
 }
 
 // ---------- ICS loader with in-memory cache (5 min) ----------
@@ -80,9 +154,17 @@ async function loadFeedsForProperty(prop) {
     try {
       const data = await fetchIcsCached(url, fromURLCompat);
       const events = Object.values(data || {}).filter(e => e && e.type === 'VEVENT');
-      return { ok: true, events };
+
+      return {
+        ok: true,
+        events
+      };
+
     } catch {
-      return { ok: false, events: [] };
+      return {
+        ok: false,
+        events: []
+      };
     }
   }));
 
@@ -101,7 +183,10 @@ async function loadFeedsForProperty(prop) {
     }
   }
 
-  return { feeds_ok, busyNights: busy };
+  return {
+    feeds_ok,
+    busyNights: busy
+  };
 }
 
 // ---------- Pricing ----------
@@ -111,7 +196,10 @@ function priceAndMinStay(prop, check_in, check_out, currency = 'ZAR') {
   const nights = utils.stayNights(check_in, check_out);
 
   if (nights <= 0) {
-    return { ok: false, error: 'Invalid date range' };
+    return {
+      ok: false,
+      error: 'Invalid date range'
+    };
   }
 
   const seasons = (prop.seasons || []).map(s => ({
@@ -176,29 +264,44 @@ export default async function handler(req, res) {
         : null;
 
     if (!src) {
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({
+        error: 'Method not allowed'
+      });
     }
 
-    const { check_in, check_out, guests = '2', limit = '999' } = src;
+    const {
+      check_in,
+      check_out,
+      guests = '2',
+      limit = '999'
+    } = src;
 
     if (!check_in || !check_out) {
-      return res.status(400).json({ error: 'Missing check_in/check_out' });
+      return res.status(400).json({
+        error: 'Missing check_in/check_out'
+      });
     }
 
     if (typeof utils.nightsBetween !== 'function') {
-      return res.status(500).json({ error: 'utils.js missing nightsBetween()' });
+      return res.status(500).json({
+        error: 'utils.js missing nightsBetween()'
+      });
     }
 
     const reqNights = utils.nightsBetween(check_in, check_out);
 
     if (!reqNights.length) {
-      return res.status(400).json({ error: 'Invalid date range' });
+      return res.status(400).json({
+        error: 'Invalid date range'
+      });
     }
 
     const cfg = getConfig();
     const allProps = (cfg.properties || []);
     const currency = cfg.currency || 'ZAR';
     const t0 = Date.now();
+
+    let ownerBlocksChecked = 0;
 
     const results = await Promise.all(allProps.map(async (p) => {
       const { feeds_ok, busyNights } = await loadFeedsForProperty(p);
@@ -211,9 +314,17 @@ export default async function handler(req, res) {
         };
       }
 
-      const conflict = reqNights.some(n => busyNights.has(n));
+      const {
+        owner_blocks_count,
+        ownerBlockNights
+      } = await loadOwnerBlockNights(p.property_slug);
 
-      if (conflict) {
+      ownerBlocksChecked += owner_blocks_count;
+
+      const calendarConflict = reqNights.some(n => busyNights.has(n));
+      const ownerBlockConflict = reqNights.some(n => ownerBlockNights.has(n));
+
+      if (calendarConflict || ownerBlockConflict) {
         return null;
       }
 
@@ -253,6 +364,7 @@ export default async function handler(req, res) {
         properties_total: allProps.length,
         available_count: available.length,
         failed_feeds: failedFeeds,
+        owner_blocks_checked: ownerBlocksChecked,
         ms: Date.now() - t0
       }
     });
