@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { parseMonthsSpec, stayNights, dateRangeList, isoDate } from './utils.js';
+import { parseMonthsSpec, stayNights, dateRangeList, isoDate, seasonForDate } from './utils.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP while testing
@@ -17,10 +17,9 @@ function getConfig() {
   if (Array.isArray(parsed)) {
     return { currency: 'ZAR', properties: parsed };
   }
+
   return parsed || { currency: 'ZAR', properties: [] };
 }
-
-function monthFromDate(d) { return (new Date(d)).getMonth() + 1; }
 
 export default async function handler(req, res) {
   try {
@@ -29,16 +28,24 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     const { property_slug, check_in, check_out } = req.body || {};
+
     if (!property_slug || !check_in || !check_out) {
       return res.status(400).json({ error: 'Missing property_slug, check_in, check_out' });
     }
 
     const cfg = getConfig();
+
     const prop = (cfg.properties || []).find(p => p.property_slug === property_slug);
-    if (!prop) return res.status(404).json({ error: 'Unknown property' });
+
+    if (!prop) {
+      return res.status(404).json({ error: 'Unknown property' });
+    }
 
     const nights = stayNights(check_in, check_out);
-    if (nights <= 0) return res.status(400).json({ error: 'Invalid date range' });
+
+    if (nights <= 0) {
+      return res.status(400).json({ error: 'Invalid date range' });
+    }
 
     const seasons = (prop.seasons || []).map(s => ({
       name: s.season_name,
@@ -49,17 +56,37 @@ export default async function handler(req, res) {
     }));
 
     const dates = dateRangeList(check_in, nights);
-    let total = 0; let maxMinStay = 1; const breakdown = [];
+
+    let total = 0;
+    let maxMinStay = 1;
+    const breakdown = [];
+
     for (const d of dates) {
-      const m = monthFromDate(d);
-      const s = seasons.find(S => S.months.includes(m));
-      if (!s) return res.status(400).json({ error: `No season rule covers ${isoDate(d)} (month ${m})` });
+      const s = seasonForDate(d, seasons);
+
+      if (!s) {
+        return res.status(400).json({
+          error: `No season rule covers ${isoDate(d)}`
+        });
+      }
+
       total += s.rate;
-      if (s.minStay > maxMinStay) maxMinStay = s.minStay;
-      breakdown.push({ date: isoDate(d), season: s.name, nightly_rate_zar: s.rate });
+
+      if (s.minStay > maxMinStay) {
+        maxMinStay = s.minStay;
+      }
+
+      breakdown.push({
+        date: isoDate(d),
+        season: s.easterOverride ? 'Shoulder Season (Easter Weekend)' : s.name,
+        nightly_rate_zar: s.rate
+      });
     }
 
-    const cleaningFees = seasons.map(s => s.cleaning).filter(c => c > 0);
+    const cleaningFees = seasons
+      .map(s => s.cleaning)
+      .filter(c => c > 0);
+
     const cleaning = cleaningFees.length ? Math.max(...cleaningFees) : 0;
     const minStayOk = nights >= maxMinStay;
 
@@ -73,7 +100,11 @@ export default async function handler(req, res) {
       total_price_zar: total + cleaning,
       breakdown
     });
+
   } catch (err) {
-    return res.status(500).json({ error: 'Server error in quote', detail: String(err) });
+    return res.status(500).json({
+      error: 'Server error in quote',
+      detail: String(err)
+    });
   }
 }
