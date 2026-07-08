@@ -15,7 +15,7 @@
     }
 
     .wrap {
-      max-width: 900px;
+      max-width: 980px;
       margin: 0 auto;
       padding: 28px 16px 60px;
     }
@@ -40,6 +40,11 @@
       font-size: 20px;
     }
 
+    h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
     p {
       line-height: 1.5;
     }
@@ -47,6 +52,10 @@
     .muted {
       color: #6b7280;
       font-size: 14px;
+    }
+
+    .small {
+      font-size: 13px;
     }
 
     label {
@@ -77,6 +86,12 @@
       gap: 14px;
     }
 
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
     .field {
       margin-bottom: 14px;
     }
@@ -93,10 +108,9 @@
       color: #ffffff;
     }
 
-    button.secondary {
-      background: #ffffff;
-      color: #1f2933;
-      border: 1px solid #d7cfc5;
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
     }
 
     button.danger {
@@ -106,7 +120,7 @@
       font-size: 13px;
     }
 
-    .block {
+    .item {
       border: 1px solid #ece4da;
       border-radius: 14px;
       padding: 14px;
@@ -118,9 +132,28 @@
       align-items: center;
     }
 
-    .block strong {
+    .item strong {
       display: block;
       margin-bottom: 4px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .pill.booked {
+      background: #efe2d3;
+      color: #7c4a17;
+    }
+
+    .pill.owner {
+      background: #dfeee5;
+      color: #166534;
     }
 
     .error {
@@ -137,16 +170,17 @@
       display: none;
     }
 
-    @media (max-width: 700px) {
-      .grid {
+    @media (max-width: 800px) {
+      .grid,
+      .two-col {
         grid-template-columns: 1fr;
       }
 
-      .block {
+      .item {
         display: block;
       }
 
-      .block button {
+      .item button {
         margin-top: 12px;
       }
     }
@@ -158,7 +192,7 @@
     <div class="card">
       <h1>Owner Calendar</h1>
       <p class="muted">
-        View and manage owner-use dates for your property.
+        View booked dates and manage owner-use dates for your property.
       </p>
       <p id="propertyName" class="muted">Loading...</p>
     </div>
@@ -195,11 +229,31 @@
         <p id="formMessage" class="muted"></p>
       </div>
 
-      <div class="card">
-        <h2>Current owner blocks</h2>
-        <div id="blocksList">
-          <p class="muted">Loading blocks...</p>
+      <div class="two-col">
+        <div class="card">
+          <h2>Booked dates</h2>
+          <p class="muted small">
+            These dates come from Airbnb, Booking.com or Lekkeslaap. They are read-only and do not include guest details.
+          </p>
+          <div id="bookingsList">
+            <p class="muted">Loading booked dates...</p>
+          </div>
         </div>
+
+        <div class="card">
+          <h2>Owner-use dates</h2>
+          <p class="muted small">
+            These are dates blocked by the owner from this page.
+          </p>
+          <div id="blocksList">
+            <p class="muted">Loading owner blocks...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Calendar status</h2>
+        <p id="diagnostics" class="muted">Loading calendar status...</p>
       </div>
     </div>
   </div>
@@ -213,6 +267,8 @@
     const errorText = document.getElementById('errorText');
     const propertyName = document.getElementById('propertyName');
     const blocksList = document.getElementById('blocksList');
+    const bookingsList = document.getElementById('bookingsList');
+    const diagnostics = document.getElementById('diagnostics');
     const formMessage = document.getElementById('formMessage');
 
     function showError(message) {
@@ -232,14 +288,91 @@
       });
     }
 
-    async function loadBlocks() {
+    function renderBookings(bookings) {
+      if (!bookings || !bookings.length) {
+        bookingsList.innerHTML = '<p class="muted">No booked dates are currently showing from the connected booking platforms.</p>';
+        return;
+      }
+
+      bookingsList.innerHTML = bookings.map(booking => `
+        <div class="item">
+          <div>
+            <span class="pill booked">Booked</span>
+            <strong>${formatDate(booking.start_date)} to ${formatDate(booking.end_date)}</strong>
+            <div class="muted">${booking.source || 'External calendar'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderOwnerBlocks(blocks) {
+      if (!blocks || !blocks.length) {
+        blocksList.innerHTML = '<p class="muted">No owner-use dates have been blocked yet.</p>';
+        return;
+      }
+
+      blocksList.innerHTML = blocks.map(block => `
+        <div class="item">
+          <div>
+            <span class="pill owner">Owner use</span>
+            <strong>${formatDate(block.start_date)} to ${formatDate(block.end_date)}</strong>
+            <div class="muted">${block.note ? block.note : 'Owner block'}</div>
+          </div>
+          <button class="danger" data-delete-id="${block.id}">Delete</button>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('[data-delete-id]').forEach(button => {
+        button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-delete-id');
+
+          if (!confirm('Delete this owner-use block?')) {
+            return;
+          }
+
+          button.disabled = true;
+          button.textContent = 'Deleting...';
+
+          const deleteResponse = await fetch(
+            '/api/owner-blocks?token=' + encodeURIComponent(token) + '&id=' + encodeURIComponent(id),
+            { method: 'DELETE' }
+          );
+
+          const deleteData = await deleteResponse.json();
+
+          if (!deleteResponse.ok || !deleteData.ok) {
+            alert(deleteData.detail || deleteData.error || 'Could not delete block.');
+            button.disabled = false;
+            button.textContent = 'Delete';
+            return;
+          }
+
+          await loadCalendar();
+        });
+      });
+    }
+
+    function renderDiagnostics(data) {
+      const d = data.diagnostics || {};
+      const feeds = d.external_calendar_feeds || {};
+
+      diagnostics.textContent =
+        'Owner blocks: ' + (d.owner_blocks_count ?? 0) +
+        ' · Platform bookings: ' + (d.external_bookings_count ?? 0) +
+        ' · Calendar feeds working: ' + (feeds.feeds_ok ?? 0) + ' of ' + (feeds.feeds_total ?? 0) +
+        (feeds.feeds_failed && feeds.feeds_failed.length
+          ? ' · Feeds needing attention: ' + feeds.feeds_failed.join(', ')
+          : '');
+    }
+
+    async function loadCalendar() {
       if (!token) {
         showError('Missing owner access token. Please use the private owner link provided by Boutique Southern Tip Escapes.');
         return;
       }
 
       try {
-        const response = await fetch('/api/owner-blocks?token=' + encodeURIComponent(token));
+        const response = await fetch('/api/owner-blocks?token=' + encodeURIComponent(token) + '&v=' + Date.now());
         const data = await response.json();
 
         if (!response.ok || !data.ok) {
@@ -251,46 +384,9 @@
         app.classList.remove('hidden');
         errorBox.classList.add('hidden');
 
-        if (!data.blocks || !data.blocks.length) {
-          blocksList.innerHTML = '<p class="muted">No owner-use dates have been blocked yet.</p>';
-          return;
-        }
-
-        blocksList.innerHTML = data.blocks.map(block => `
-          <div class="block">
-            <div>
-              <strong>${formatDate(block.start_date)} to ${formatDate(block.end_date)}</strong>
-              <div class="muted">${block.note ? block.note : 'Owner block'}</div>
-            </div>
-            <button class="danger" data-delete-id="${block.id}">Delete</button>
-          </div>
-        `).join('');
-
-        document.querySelectorAll('[data-delete-id]').forEach(button => {
-          button.addEventListener('click', async () => {
-            const id = button.getAttribute('data-delete-id');
-            if (!confirm('Delete this owner block?')) return;
-
-            button.disabled = true;
-            button.textContent = 'Deleting...';
-
-            const deleteResponse = await fetch(
-              '/api/owner-blocks?token=' + encodeURIComponent(token) + '&id=' + encodeURIComponent(id),
-              { method: 'DELETE' }
-            );
-
-            const deleteData = await deleteResponse.json();
-
-            if (!deleteResponse.ok || !deleteData.ok) {
-              alert(deleteData.detail || deleteData.error || 'Could not delete block.');
-              button.disabled = false;
-              button.textContent = 'Delete';
-              return;
-            }
-
-            await loadBlocks();
-          });
-        });
+        renderBookings(data.bookings || []);
+        renderOwnerBlocks(data.blocks || []);
+        renderDiagnostics(data);
 
       } catch (err) {
         showError('Could not load owner calendar. ' + String(err));
@@ -351,7 +447,7 @@
         document.getElementById('endDate').value = '';
         document.getElementById('note').value = '';
 
-        await loadBlocks();
+        await loadCalendar();
 
       } catch (err) {
         formMessage.textContent = 'Could not save block. ' + String(err);
@@ -362,7 +458,7 @@
       button.textContent = 'Block these dates';
     });
 
-    loadBlocks();
+    loadCalendar();
   </script>
 </body>
 </html>
