@@ -3,6 +3,7 @@
 // GET    = list owner blocks + external booked dates for a property token
 // POST   = create a new owner block
 // DELETE = delete an owner block
+// Also sends webhook events to Google Sheets / email workflow.
 
 import fs from 'fs';
 
@@ -103,6 +104,37 @@ function sourceLabel(sourceKey) {
   return 'External calendar';
 }
 
+// ---------- Google webhook ----------
+async function sendGoogleWebhook(payload) {
+  const webhookUrl = process.env.GOOGLE_WEBHOOK_URL;
+  const secret = process.env.BSTE_WEBHOOK_SECRET;
+
+  if (!webhookUrl || !secret) {
+    console.log('Google webhook not configured, skipping notification.');
+    return { ok: false, skipped: true };
+  }
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      secret,
+      ...payload
+    })
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Google webhook failed: ${response.status} ${text}`);
+  }
+
+  return { ok: true, response_text: text };
+}
+
+// ---------- External booking calendars ----------
 // version-agnostic node-ical loader
 async function loadNodeIcal() {
   const mod = await import('node-ical').catch(() => null);
@@ -243,14 +275,8 @@ export default async function handler(req, res) {
         ok: true,
         property_slug: propertySlug,
         owner_name: owner.owner_name,
-
-        // Owner-created blocks. These can be deleted by the owner.
         blocks: ownerBlocks || [],
-
-        // Airbnb / Booking.com / Lekkeslaap booked dates.
-        // These are read-only and contain no guest information.
         bookings: external.bookings || [],
-
         diagnostics: {
           owner_blocks_count: (ownerBlocks || []).length,
           external_bookings_count: (external.bookings || []).length,
@@ -289,11 +315,27 @@ export default async function handler(req, res) {
         }
       });
 
+      const block = inserted?.[0] || null;
+
+      try {
+        await sendGoogleWebhook({
+          action: 'created',
+          property_slug: propertySlug,
+          owner_name: owner.owner_name,
+          start_date,
+          end_date,
+          note,
+          block_id: block?.id || ''
+        });
+      } catch (webhookErr) {
+        console.error('Webhook error after create:', String(webhookErr));
+      }
+
       return res.status(200).json({
         ok: true,
         message: 'Owner block created',
         property_slug: propertySlug,
-        block: inserted?.[0] || null
+        block
       });
     }
 
@@ -307,6 +349,12 @@ export default async function handler(req, res) {
         });
       }
 
+      const existingRows = await supabaseFetch(
+        `owner_blocks?select=id,property_slug,start_date,end_date,note&id=eq.${encodeURIComponent(id)}&property_slug=eq.${encodeURIComponent(propertySlug)}&limit=1`
+      );
+
+      const existing = existingRows?.[0];
+
       await supabaseFetch(
         `owner_blocks?id=eq.${encodeURIComponent(id)}&property_slug=eq.${encodeURIComponent(propertySlug)}`,
         {
@@ -314,6 +362,20 @@ export default async function handler(req, res) {
           prefer: 'return=minimal'
         }
       );
+
+      try {
+        await sendGoogleWebhook({
+          action: 'deleted',
+          property_slug: propertySlug,
+          owner_name: owner.owner_name,
+          start_date: existing?.start_date || '',
+          end_date: existing?.end_date || '',
+          note: existing?.note || '',
+          block_id: existing?.id || id
+        });
+      } catch (webhookErr) {
+        console.error('Webhook error after delete:', String(webhookErr));
+      }
 
       return res.status(200).json({
         ok: true,
