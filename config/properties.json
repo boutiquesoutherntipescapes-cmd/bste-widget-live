@@ -12,14 +12,14 @@
     "seasons": [
       {
         "season_name": "Low Season",
-        "months": "February, March, April, May, June, August, October, November",
+        "months": "February, March, April, May, June, July, August, October, November",
         "nightly_rate_zar": 5800,
         "min_stay_nights": 2,
         "cleaning_fee_zar": 800
       },
       {
         "season_name": "Shoulder Season",
-        "months": "July, September",
+        "months": "September",
         "nightly_rate_zar": 6500,
         "min_stay_nights": 2,
         "cleaning_fee_zar": 800
@@ -30,40 +30,6 @@
         "nightly_rate_zar": 8500,
         "min_stay_nights": 5,
         "cleaning_fee_zar": 800
-      }
-    ]
-  },
-  {
-    "property_slug": "penthouse-2-marine",
-    "display_name": "The Penthouse",
-    "property_page_url": "https://www.boutiquesoutherntipescapes.com/penthouse-2-marine",
-    "thumbnail_url": "/img/penthouse-2-marine.jpg",
-    "ical": {
-      "airbnb": "https://www.airbnb.co.za/calendar/ical/1559416321690819672.ics?t=200efc7e1f30498ab45bdb94c06a4db4",
-      "bookingcom": "https://ical.booking.com/v1/export/t/6084e6c7-19dc-436d-ae35-7a7c68dad416.ics",
-      "lekkeslaap": ""
-    },
-    "seasons": [
-      {
-        "season_name": "Low Season",
-        "months": "February, March, April, May, June, August, October, November",
-        "nightly_rate_zar": 9200,
-        "min_stay_nights": 2,
-        "cleaning_fee_zar": 1500
-      },
-      {
-        "season_name": "Shoulder Season",
-        "months": "July, September",
-        "nightly_rate_zar": 12000,
-        "min_stay_nights": 4,
-        "cleaning_fee_zar": 1500
-      },
-      {
-        "season_name": "High Season",
-        "months": "December, January",
-        "nightly_rate_zar": 13500,
-        "min_stay_nights": 7,
-        "cleaning_fee_zar": 1500
       }
     ]
   },
@@ -80,14 +46,14 @@
     "seasons": [
       {
         "season_name": "Low Season",
-        "months": "February, March, April, May, June, August, October, November",
+        "months": "February, March, April, May, June, July, August, October, November",
         "nightly_rate_zar": 6500,
         "min_stay_nights": 2,
         "cleaning_fee_zar": 1000
       },
       {
         "season_name": "Shoulder Season",
-        "months": "July, September",
+        "months": "September",
         "nightly_rate_zar": 7500,
         "min_stay_nights": 3,
         "cleaning_fee_zar": 1000
@@ -97,6 +63,40 @@
         "months": "December, January",
         "nightly_rate_zar": 8000,
         "min_stay_nights": 10,
+        "cleaning_fee_zar": 1000
+      }
+    ]
+  },
+  {
+    "property_slug": "the-pearl-beach-villa-agulhas",
+    "display_name": "The Pearl Beach Villa Agulhas",
+    "property_page_url": "https://www.boutiquesoutherntipescapes.com/the-pearl-beach-villa-agulhas",
+    "thumbnail_url": "/img/the-pearl-beach-villa-agulhas.jpg",
+    "ical": {
+      "airbnb": "https://www.airbnb.co.za/calendar/ical/1725186004965592426.ics?t=c20a8c3ed2d645df8db13e2fbfbbba4e",
+      "bookingcom": "https://ical.booking.com/v1/export?t=b2273b44-b699-47c6-9f08-c3df42b194fd",
+      "lekkeslaap": ""
+    },
+    "seasons": [
+      {
+        "season_name": "Low Season",
+        "months": "February, March, April, May, June, July, August, October, November",
+        "nightly_rate_zar": 6000,
+        "min_stay_nights": 2,
+        "cleaning_fee_zar": 1000
+      },
+      {
+        "season_name": "Shoulder Season",
+        "months": "September",
+        "nightly_rate_zar": 7000,
+        "min_stay_nights": 3,
+        "cleaning_fee_zar": 1000
+      },
+      {
+        "season_name": "High Season",
+        "months": "December, January",
+        "nightly_rate_zar": 8000,
+        "min_stay_nights": 7,
         "cleaning_fee_zar": 1000
       }
     ]
