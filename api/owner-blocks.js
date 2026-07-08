@@ -1,8 +1,10 @@
 // /api/owner-blocks.js
 // Owner calendar blocks API.
-// GET    = list owner blocks for a property token
+// GET    = list owner blocks + external booked dates for a property token
 // POST   = create a new owner block
 // DELETE = delete an owner block
+
+import fs from 'fs';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -54,6 +56,17 @@ async function supabaseFetch(path, options = {}) {
   return JSON.parse(text);
 }
 
+function getConfig() {
+  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url), 'utf8');
+  const parsed = JSON.parse(raw);
+
+  if (Array.isArray(parsed)) {
+    return { properties: parsed };
+  }
+
+  return parsed || { properties: [] };
+}
+
 async function getOwnerByToken(token) {
   if (!token) {
     throw new Error('Missing owner token');
@@ -76,6 +89,133 @@ function isValidDateString(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
 
+function dateOnly(value) {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function sourceLabel(sourceKey) {
+  const key = String(sourceKey || '').toLowerCase();
+
+  if (key.includes('airbnb')) return 'Airbnb';
+  if (key.includes('booking')) return 'Booking.com';
+  if (key.includes('lekke')) return 'Lekkeslaap';
+
+  return 'External calendar';
+}
+
+// version-agnostic node-ical loader
+async function loadNodeIcal() {
+  const mod = await import('node-ical').catch(() => null);
+  const lib = mod?.default ?? mod;
+
+  const hasAsync = typeof lib?.async?.fromURL === 'function';
+  const hasDirect = typeof lib?.fromURL === 'function';
+
+  async function fromURLCompat(url, options = {}) {
+    if (hasAsync) {
+      return await lib.async.fromURL(url, options);
+    }
+
+    if (hasDirect) {
+      return await new Promise((resolve, reject) => {
+        lib.fromURL(url, options, (err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
+      });
+    }
+
+    throw new Error('node-ical: no fromURL found');
+  }
+
+  return { fromURLCompat };
+}
+
+async function loadExternalBookingsForProperty(propertySlug) {
+  const cfg = getConfig();
+  const prop = (cfg.properties || []).find(p => p.property_slug === propertySlug);
+
+  if (!prop) {
+    return {
+      bookings: [],
+      diagnostics: {
+        feeds_total: 0,
+        feeds_ok: 0,
+        feeds_failed: ['Property not found in config']
+      }
+    };
+  }
+
+  const feeds = Object.entries(prop.ical || {})
+    .filter(([key, url]) => Boolean(url))
+    .map(([key, url]) => ({
+      key,
+      url,
+      label: sourceLabel(key)
+    }));
+
+  if (!feeds.length) {
+    return {
+      bookings: [],
+      diagnostics: {
+        feeds_total: 0,
+        feeds_ok: 0,
+        feeds_failed: []
+      }
+    };
+  }
+
+  const { fromURLCompat } = await loadNodeIcal();
+
+  const allBookings = [];
+  const failed = [];
+  let ok = 0;
+
+  for (const feed of feeds) {
+    try {
+      const data = await fromURLCompat(feed.url);
+
+      const events = Object.values(data || {})
+        .filter(e => e && e.type === 'VEVENT');
+
+      ok++;
+
+      for (const ev of events) {
+        if (!ev.start || !ev.end) continue;
+
+        allBookings.push({
+          id: `${feed.key}-${dateOnly(ev.start)}-${dateOnly(ev.end)}`,
+          property_slug: propertySlug,
+          start_date: dateOnly(ev.start),
+          end_date: dateOnly(ev.end),
+          type: 'external_booking',
+          label: 'Booked',
+          source: feed.label,
+          note: 'Booked'
+        });
+      }
+
+    } catch (err) {
+      failed.push(feed.label);
+    }
+  }
+
+  allBookings.sort((a, b) => {
+    if (a.start_date < b.start_date) return -1;
+    if (a.start_date > b.start_date) return 1;
+    return 0;
+  });
+
+  return {
+    bookings: allBookings,
+    diagnostics: {
+      feeds_total: feeds.length,
+      feeds_ok: ok,
+      feeds_failed: failed
+    }
+  };
+}
+
 export default async function handler(req, res) {
   try {
     cors(res);
@@ -93,15 +233,29 @@ export default async function handler(req, res) {
     const propertySlug = owner.property_slug;
 
     if (req.method === 'GET') {
-      const blocks = await supabaseFetch(
+      const ownerBlocks = await supabaseFetch(
         `owner_blocks?select=id,property_slug,start_date,end_date,block_type,note,created_by,created_at&property_slug=eq.${encodeURIComponent(propertySlug)}&order=start_date.asc`
       );
+
+      const external = await loadExternalBookingsForProperty(propertySlug);
 
       return res.status(200).json({
         ok: true,
         property_slug: propertySlug,
         owner_name: owner.owner_name,
-        blocks: blocks || []
+
+        // Owner-created blocks. These can be deleted by the owner.
+        blocks: ownerBlocks || [],
+
+        // Airbnb / Booking.com / Lekkeslaap booked dates.
+        // These are read-only and contain no guest information.
+        bookings: external.bookings || [],
+
+        diagnostics: {
+          owner_blocks_count: (ownerBlocks || []).length,
+          external_bookings_count: (external.bookings || []).length,
+          external_calendar_feeds: external.diagnostics
+        }
       });
     }
 
