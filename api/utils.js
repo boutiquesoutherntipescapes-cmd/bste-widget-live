@@ -1,4 +1,4 @@
-// ===== utils.js (robust months + date helpers) =====
+// ===== utils.js (robust months + date helpers + Easter weekend pricing helper) =====
 
 // Return true if [aStart,aEnd) overlaps [bStart,bEnd)
 export function overlaps(aStart, aEnd, bStart, bEnd) {
@@ -58,16 +58,16 @@ export function nightsBetween(start, end) {
 // Case-insensitive; tolerant of punctuation and mixed separators
 export function parseMonthsSpec(spec) {
   if (!spec) return [];
-  // normalise separators & punctuation
+
   let s = String(spec).toLowerCase()
-    .replace(/–|—/g, '-')       // en/em dashes -> hyphen
-    .replace(/\bto\b/g, '-')    // "to" -> hyphen
-    .replace(/\bthrough\b/g, '-') // "through" -> hyphen
-    .replace(/\+/g, ',')        // plus -> comma
-    .replace(/&/g, ',')         // ampersand -> comma
-    .replace(/\band\b/g, ',')   // "and" -> comma
-    .replace(/\./g, '');        // remove trailing dots like "Sept."
-  // map of month names (short + long) -> number
+    .replace(/–|—/g, '-')
+    .replace(/\bto\b/g, '-')
+    .replace(/\bthrough\b/g, '-')
+    .replace(/\+/g, ',')
+    .replace(/&/g, ',')
+    .replace(/\band\b/g, ',')
+    .replace(/\./g, '');
+
   const MONTHS = {
     jan:1, january:1,
     feb:2, february:2,
@@ -90,23 +90,29 @@ export function parseMonthsSpec(spec) {
     const t = token.trim();
     if (!t) return null;
     if (MONTHS[t] != null) return MONTHS[t];
-    // try first 3 letters if full name given weirdly
+
     const t3 = t.slice(0,3);
     if (MONTHS[t3] != null) return MONTHS[t3];
+
     const n = parseInt(t, 10);
     if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
+
     throw new Error(`Invalid month token: ${token}`);
   };
 
   for (const p of parts) {
     if (!p) continue;
+
     if (p.includes('-')) {
       const [a, b] = p.split('-').map(x => x.trim()).filter(Boolean);
+
       if (!a && !b) continue;
       if (a && !b) { add.add(toNum(a)); continue; }
       if (!a && b) { add.add(toNum(b)); continue; }
+
       const start = toNum(a), end = toNum(b);
       if (start == null || end == null) continue;
+
       if (start <= end) {
         for (let m = start; m <= end; m++) add.add(m);
       } else {
@@ -119,5 +125,74 @@ export function parseMonthsSpec(spec) {
       if (n != null) add.add(n);
     }
   }
+
   return Array.from(add).sort((x,y)=>x-y);
+}
+
+// Add or subtract days from a YYYY-MM-DD date string
+export function addDaysYmd(ymdString, days) {
+  const d = new Date(ymdString + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + Number(days || 0));
+  return d.toISOString().slice(0, 10);
+}
+
+// Calculate Easter Sunday for a given year.
+// This uses the standard Gregorian calendar calculation.
+export function easterSundayYmd(year) {
+  const y = Number(year);
+
+  const a = y % 19;
+  const b = Math.floor(y / 100);
+  const c = y % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+
+  const month = Math.floor((h + l - 7 * m + 114) / 31); // 3 = March, 4 = April
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Easter long-weekend nights:
+// Thursday night before Good Friday, Good Friday night, Saturday night, Easter Sunday night.
+// In date terms, that is Easter Sunday minus 3 days through Easter Sunday itself.
+export function isEasterWeekendNight(dateLike) {
+  const night = ymd(dateLike);
+  const year = Number(night.slice(0, 4));
+  const easterSunday = easterSundayYmd(year);
+
+  const easterWeekendNights = new Set([
+    addDaysYmd(easterSunday, -3),
+    addDaysYmd(easterSunday, -2),
+    addDaysYmd(easterSunday, -1),
+    easterSunday
+  ]);
+
+  return easterWeekendNights.has(night);
+}
+
+// Choose the correct season for a specific night.
+// Easter weekend overrides normal monthly pricing and uses Shoulder Season.
+export function seasonForDate(dateLike, seasons) {
+  const night = ymd(dateLike);
+
+  if (isEasterWeekendNight(night)) {
+    const shoulder = seasons.find(s => String(s.name || '').toLowerCase().includes('shoulder'));
+    if (shoulder) {
+      return {
+        ...shoulder,
+        easterOverride: true
+      };
+    }
+  }
+
+  const month = new Date(night + 'T00:00:00Z').getUTCMonth() + 1;
+  return seasons.find(S => (S.months || []).includes(month)) || null;
 }
