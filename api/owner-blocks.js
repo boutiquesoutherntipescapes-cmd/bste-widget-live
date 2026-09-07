@@ -13,7 +13,7 @@ import {
   clearBeds24LegacyBlackout,
   loadBeds24BookingsForProperty,
   getBeds24Diagnostics
-} from './beds24.js';
+} from '../lib/beds24.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
