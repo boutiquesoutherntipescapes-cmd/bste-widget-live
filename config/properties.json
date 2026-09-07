@@ -31,11 +31,12 @@
         "min_stay_nights": 7,
         "cleaning_fee_zar": 1000
       }
-    ]
+    ],
+    "beds24_room_id": 724919
   },
   {
     "property_slug": "kalay-ridge-villa-struisbaai",
-    "display_name": "Kalay Ridge Villa",
+    "display_name": "Kalaya Ridge Villa",
     "property_page_url": "https://www.boutiquesoutherntipescapes.com/kalay-ridge-villa-struisbaai",
     "thumbnail_url": "/img/kalay-ridge-villa-struisbaai.jpg",
     "ical": {
@@ -65,7 +66,8 @@
         "min_stay_nights": 7,
         "cleaning_fee_zar": 1000
       }
-    ]
+    ],
+    "beds24_room_id": 726060
   },
   {
     "property_slug": "the-pearl-beach-villa-agulhas",
