@@ -387,7 +387,7 @@ export default async function handler(req, res) {
       const existing = existingRows?.[0];
       if (!existing) return res.status(404).json({ ok: false, error: 'Owner block not found' });
 
-      let syncResult = { cleared: false };
+      let syncResult = { cleared: false, reapplied: 0 };
       try {
         const overlapsOther = await otherOverlappingOwnerBlocks(
           propertySlug,
@@ -396,13 +396,22 @@ export default async function handler(req, res) {
           existing.end_date
         );
 
-        if (!overlapsOther.length) {
-          syncResult = await clearBeds24Blackout(
+        // Clear the exact range being deleted, then re-apply any overlapping
+        // owner blocks so partial overlaps do not accidentally reopen dates.
+        await clearBeds24Blackout(
+          propertySlug,
+          existing.start_date,
+          existing.end_date
+        );
+        syncResult.cleared = true;
+
+        for (const other of overlapsOther) {
+          await setBeds24Blackout(
             propertySlug,
-            existing.start_date,
-            existing.end_date
+            other.start_date,
+            other.end_date
           );
-          syncResult.cleared = true;
+          syncResult.reapplied += 1;
         }
       } catch (err) {
         return res.status(503).json({
