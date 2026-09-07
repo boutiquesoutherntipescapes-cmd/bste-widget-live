@@ -35,9 +35,10 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const [legacy, kalaya] = await Promise.all([
+      const [legacy, kalaya, pearl] = await Promise.all([
         getBeds24Diagnostics('legacy-suiderstrand'),
-        getBeds24Diagnostics('kalay-ridge-villa-struisbaai')
+        getBeds24Diagnostics('kalay-ridge-villa-struisbaai'),
+        getBeds24Diagnostics('the-pearl-beach-villa-agulhas')
       ]);
 
       return res.status(200).json({
@@ -46,7 +47,8 @@ export default async function handler(req, res) {
         message: 'Beds24 authentication and room mapping are working.',
         properties: {
           legacy: { room_id: legacy.room_id },
-          kalaya: { room_id: kalaya.room_id }
+          kalaya: { room_id: kalaya.room_id },
+          pearl: { room_id: pearl.room_id }
         }
       });
     }
