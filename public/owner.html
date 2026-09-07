@@ -205,7 +205,7 @@
       <div class="card">
         <h2>Block dates for personal use</h2>
         <p class="muted">
-          Select the first night and the checkout date. We will check the live booking calendar first, then automatically close these dates across the connected booking channels.
+          Select the first night and the checkout date. We will check the live booking calendar first, then automatically close the stay plus one preparation night before arrival and one preparation night after checkout across the connected booking channels.
         </p>
 
         <div class="grid">
@@ -443,7 +443,7 @@
           return;
         }
 
-        formMessage.textContent = 'Dates blocked successfully across the connected booking channels.';
+        formMessage.textContent = 'Dates blocked successfully, including the preparation night before and after the stay.';
         formMessage.className = 'success';
 
         document.getElementById('startDate').value = '';
