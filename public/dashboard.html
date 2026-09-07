@@ -38,6 +38,18 @@
     .statlabel{font-size:11px;color:var(--muted);font-weight:800}
     .statvalue{font-family:Georgia,serif;font-size:28px;margin-top:7px}
     .statnote{font-size:10px;color:var(--muted);margin-top:5px}
+    .workflow{margin-bottom:18px}
+    .workflowgrid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:16px}
+    .todaybox{background:var(--navy);color:white;border-radius:15px;padding:18px}
+    .todaybox .eyebrow{color:#d9b17d}
+    .todaycount{font-family:Georgia,serif;font-size:42px;line-height:1;margin:7px 0}
+    .todaylabel{font-size:11px;color:#cbd3db;line-height:1.5}
+    .oplist{display:grid;gap:8px}
+    .opitem{display:grid;grid-template-columns:72px 115px 1fr;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:white}
+    .opdate{font-size:10px;font-weight:900;color:var(--gold);text-transform:uppercase}
+    .optype{font-size:10px;font-weight:900}
+    .opdetail{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .opitem.today{border-color:#d6b184;background:#fff9f0}
     .layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(315px,.72fr);gap:18px;align-items:start}
     .panel{padding:20px}
     .panelhead{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:16px}
@@ -85,7 +97,7 @@
     .alert{background:#fff8ed;border:1px solid #ecd8b8;border-radius:13px;padding:13px;font-size:10px;line-height:1.55;color:#76542f}
     .loading{padding:22px;color:var(--muted);font-size:12px}
     .error{color:var(--red);font-weight:800}
-    @media(max-width:1080px){.stats{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}.rightcol{grid-template-columns:1fr 1fr}.side{display:none}.app{grid-template-columns:1fr}}
+    @media(max-width:1080px){.stats{grid-template-columns:repeat(2,1fr)}.workflowgrid{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.rightcol{grid-template-columns:1fr 1fr}.side{display:none}.app{grid-template-columns:1fr}}
     @media(max-width:680px){.main{padding:20px 15px 40px}.stats{grid-template-columns:1fr 1fr}.rightcol{grid-template-columns:1fr}.top{flex-direction:column}.topactions{width:100%;flex-wrap:wrap}h1{font-size:31px}}
   </style>
 </head>
@@ -130,6 +142,21 @@
       <div class="card stat"><div class="statlabel">Next arrival</div><div id="sNext" class="statvalue" style="font-size:21px">—</div><div id="sNextNote" class="statnote">Loading…</div></div>
     </section>
 
+    <section class="card panel workflow">
+      <div class="panelhead">
+        <div><h2>Operations</h2><div class="mini">Arrivals, checkouts and preparation tasks from the live reservation calendar</div></div>
+        <div class="mini">Today + next 7 days</div>
+      </div>
+      <div class="workflowgrid">
+        <div class="todaybox">
+          <div class="eyebrow">Today</div>
+          <div id="todayOpsCount" class="todaycount">—</div>
+          <div id="todayOpsLabel" class="todaylabel">Loading today’s workflow…</div>
+        </div>
+        <div id="operationsList" class="oplist"><div class="loading">Loading operational schedule…</div></div>
+      </div>
+    </section>
+
     <div class="layout">
       <div>
         <section id="calendar" class="card panel">
@@ -167,7 +194,8 @@
         <section class="card panel">
           <div class="panelhead"><div><h2>System notes</h2><div class="mini">What still needs attention</div></div></div>
           <div class="alert"><strong>PayFast:</strong> awaiting merchant verification. Checkout and Beds24 direct-booking plumbing are already tested.</div>
-          <div class="alert" style="margin-top:9px"><strong>Channels:</strong> Legacy, Kalaya and Pearl are now connected through Beds24. Kalaya Booking.com is XML Active and open/bookable.</div>
+          <div class="alert" style="margin-top:9px"><strong>Booking.com:</strong> Legacy and Kalaya are XML Active. Pearl is still awaiting final activation.</div>
+          <div class="alert" style="margin-top:9px"><strong>Cleaning fee:</strong> R1,000 per reservation is now standardised across Booking.com, Airbnb and BSTE Direct.</div>
           <div class="alert" style="margin-top:9px"><strong>C ToNic:</strong> intentionally not connected yet; onboarding can wait until the property is available again.</div>
         </section>
       </aside>
@@ -195,6 +223,34 @@ function renderStats(data){
   const n = data.stats.next_arrival;
   document.getElementById('sNext').textContent = n ? fmtDate(n.arrival) : 'None';
   document.getElementById('sNextNote').textContent = n ? n.property_name + ' · ' + n.guest_name : 'No upcoming arrival';
+}
+
+
+function renderOperations(data){
+  const ops = data.operations || [];
+  const todayOps = ops.filter(x=>x.date===data.today);
+  document.getElementById('todayOpsCount').textContent = String(todayOps.length);
+  const bits=[];
+  const prep=todayOps.filter(x=>x.type==='prep').length;
+  const arrivals=todayOps.filter(x=>x.type==='arrival').length;
+  const departures=todayOps.filter(x=>x.type==='departure').length;
+  if(prep) bits.push(prep+' prep');
+  if(arrivals) bits.push(arrivals+' arrival'+(arrivals===1?'':'s'));
+  if(departures) bits.push(departures+' checkout'+(departures===1?'':'s'));
+  document.getElementById('todayOpsLabel').textContent = bits.length ? bits.join(' · ') : 'No scheduled arrival, checkout or prep task today.';
+
+  const visible = ops.slice(0,10);
+  if(!visible.length){
+    document.getElementById('operationsList').innerHTML='<div class="loading">No operational tasks in the next 7 days.</div>';
+    return;
+  }
+  document.getElementById('operationsList').innerHTML = visible.map(op =>
+    '<div class="opitem '+(op.date===data.today?'today':'')+'">'+
+      '<div class="opdate">'+fmtLong(op.date)+'</div>'+
+      '<div class="optype">'+op.label+'</div>'+
+      '<div class="opdetail"><strong>'+op.property_name+'</strong> · '+op.detail+'</div>'+
+    '</div>'
+  ).join('');
 }
 
 function renderCalendar(data){
@@ -265,8 +321,9 @@ async function load(){
     const r=await fetch('/api/dashboard-data');
     const data=await r.json();
     if(!r.ok||!data.ok) throw new Error(data.error||'Dashboard feed failed');
-    renderStats(data);renderCalendar(data);renderTable(data);renderHealth(data);
+    renderStats(data);renderOperations(data);renderCalendar(data);renderTable(data);renderHealth(data);
   }catch(err){
+    document.getElementById('operationsList').innerHTML='<div class="loading error">Could not load operational schedule.</div>';
     document.getElementById('calendarWrap').innerHTML='<div class="loading error">'+String(err)+'</div>';
     document.getElementById('staysTable').innerHTML='<div class="loading error">Could not load live reservations.</div>';
     document.getElementById('health').innerHTML='<div class="loading error">Could not verify connections.</div>';
