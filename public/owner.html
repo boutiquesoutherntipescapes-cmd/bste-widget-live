@@ -205,7 +205,7 @@
       <div class="card">
         <h2>Block dates for personal use</h2>
         <p class="muted">
-          Select the first night and the checkout date. Example: if you want to use the house from 10 May to 14 May, enter start date 2026-05-10 and end date 2026-05-14.
+          Select the first night and the checkout date. We will check the live booking calendar first, then automatically close these dates across the connected booking channels.
         </p>
 
         <div class="grid">
@@ -326,7 +326,7 @@
         button.addEventListener('click', async () => {
           const id = button.getAttribute('data-delete-id');
 
-          if (!confirm('Delete this owner-use block?')) {
+          if (!confirm('Delete this owner-use block and reopen these dates on the connected booking channels?')) {
             return;
           }
 
@@ -354,15 +354,18 @@
 
     function renderDiagnostics(data) {
       const d = data.diagnostics || {};
-      const feeds = d.external_calendar_feeds || {};
+      const sync = d.channel_sync || {};
+      const live = sync.ok === true;
 
       diagnostics.textContent =
         'Owner blocks: ' + (d.owner_blocks_count ?? 0) +
-        ' · Platform bookings: ' + (d.external_bookings_count ?? 0) +
-        ' · Calendar feeds working: ' + (feeds.feeds_ok ?? 0) + ' of ' + (feeds.feeds_total ?? 0) +
-        (feeds.feeds_failed && feeds.feeds_failed.length
-          ? ' · Feeds needing attention: ' + feeds.feeds_failed.join(', ')
-          : '');
+        ' · Guest bookings: ' + (d.external_bookings_count ?? 0) +
+        ' · Channel sync: ' + (live ? 'Live ✓' : 'Attention needed') +
+        (sync.provider ? ' · ' + sync.provider : '') +
+        (sync.room_id ? ' · Room ' + sync.room_id : '') +
+        (!live && sync.fallback ? ' · Showing ' + sync.fallback + ' fallback data' : '');
+        
+      diagnostics.className = live ? 'success' : 'muted';
     }
 
     async function loadCalendar() {
@@ -440,7 +443,7 @@
           return;
         }
 
-        formMessage.textContent = 'Dates blocked successfully.';
+        formMessage.textContent = 'Dates blocked successfully across the connected booking channels.';
         formMessage.className = 'success';
 
         document.getElementById('startDate').value = '';
@@ -457,6 +460,10 @@
       button.disabled = false;
       button.textContent = 'Block these dates';
     });
+
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('startDate').min = today;
+    document.getElementById('endDate').min = today;
 
     loadCalendar();
   </script>
