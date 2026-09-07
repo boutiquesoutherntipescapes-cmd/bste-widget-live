@@ -51,7 +51,7 @@ async function run(method) {
 }
 document.getElementById('check').onclick = () => run('GET');
 document.getElementById('write').onclick = () => {
-  if (confirm('Run the safe Beds24 write test? It creates a temporary 1-night Legacy block on 1 Feb 2030 and immediately cancels it.')) run('POST');
+  if (confirm('Run the safe Beds24 write test? It finds an available Legacy night, applies a temporary Beds24 blackout, and removes it again immediately.')) run('POST');
 };
 </script>
 </body>
