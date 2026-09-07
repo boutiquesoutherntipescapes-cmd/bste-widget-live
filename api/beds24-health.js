@@ -8,7 +8,7 @@ import {
   getBeds24Diagnostics,
   createBeds24OwnerBlock,
   cancelBeds24OwnerBlock
-} from './beds24.js';
+} from '../lib/beds24.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
