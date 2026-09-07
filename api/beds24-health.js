@@ -6,8 +6,8 @@
 
 import {
   getBeds24Diagnostics,
-  createBeds24OwnerBlock,
-  cancelBeds24OwnerBlock,
+  setBeds24Blackout,
+  clearBeds24Blackout,
   findBeds24AvailableNight
 } from '../lib/beds24.js';
 
@@ -71,35 +71,36 @@ export default async function handler(req, res) {
       const startDate = testNight.startDate;
       const endDate = testNight.endDate;
 
-      const created = await createBeds24OwnerBlock({
-        propertySlug: 'legacy-suiderstrand',
-        blockId,
+      const created = await setBeds24Blackout(
+        'legacy-suiderstrand',
         startDate,
-        endDate,
-        ownerName: 'BSTE Preview Test',
-        note: 'Automated preview smoke test; cancelled immediately.'
-      });
+        endDate
+      );
 
-      let cancelled = null;
+      let cleared = null;
       try {
-        cancelled = await cancelBeds24OwnerBlock('legacy-suiderstrand', blockId);
-      } catch (cancelErr) {
+        cleared = await clearBeds24Blackout(
+          'legacy-suiderstrand',
+          startDate,
+          endDate
+        );
+      } catch (clearErr) {
         return res.status(500).json({
           ok: false,
-          error: 'Beds24 write worked, but automatic cleanup failed.',
+          error: 'Beds24 blackout worked, but automatic cleanup failed.',
           cleanup_required: true,
           room_id: created.roomId,
           test_dates: { start_date: startDate, end_date: endDate },
-          detail: String(cancelErr)
+          detail: String(clearErr)
         });
       }
 
       return res.status(200).json({
         ok: true,
-        message: 'Beds24 read/write test passed. Temporary test block was created and cancelled.',
+        message: 'Beds24 inventory blackout test passed. Temporary block was created and removed.',
         room_id: created.roomId,
         test_dates: { start_date: startDate, end_date: endDate },
-        cleanup: cancelled
+        cleanup: cleared
       });
     }
 
