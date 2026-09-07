@@ -88,6 +88,26 @@ function dateOnly(value) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+function addDays(dateString, days) {
+  const d = new Date(String(dateString) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + Number(days || 0));
+  return d.toISOString().slice(0, 10);
+}
+
+function getPrepBufferNights(propertySlug) {
+  const cfg = getConfig();
+  const prop = (cfg.properties || []).find(p => p.property_slug === propertySlug);
+  return Math.max(0, Number(prop?.prep_buffer_nights ?? 1));
+}
+
+function bufferedRange(startDate, endDate, bufferNights) {
+  const n = Math.max(0, Number(bufferNights || 0));
+  return {
+    start: addDays(startDate, -n),
+    end: addDays(endDate, n)
+  };
+}
+
 function overlaps(aStart, aEnd, bStart, bEnd) {
   return String(aStart) < String(bEnd) && String(bStart) < String(aEnd);
 }
@@ -233,12 +253,17 @@ async function loadBookings(propertySlug) {
   }
 }
 
-async function otherOverlappingOwnerBlocks(propertySlug, excludedId, startDate, endDate) {
+async function otherOverlappingOwnerBlocks(propertySlug, excludedId, startDate, endDate, bufferNights) {
   const rows = await supabaseFetch(
     `owner_blocks?select=id,start_date,end_date&property_slug=eq.${encodeURIComponent(propertySlug)}&id=neq.${encodeURIComponent(excludedId)}`
   );
 
-  return (rows || []).filter(row => overlaps(startDate, endDate, row.start_date, row.end_date));
+  const target = bufferedRange(startDate, endDate, bufferNights);
+
+  return (rows || []).filter(row => {
+    const other = bufferedRange(row.start_date, row.end_date, bufferNights);
+    return overlaps(target.start, target.end, other.start, other.end);
+  });
 }
 
 export default async function handler(req, res) {
@@ -287,9 +312,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ ok: false, error: 'End date must be after start date' });
       }
 
+      const prepBufferNights = getPrepBufferNights(propertySlug);
+      const syncRange = bufferedRange(start_date, end_date, prepBufferNights);
+
       let availability;
       try {
-        availability = await checkBeds24Availability(propertySlug, start_date, end_date);
+        availability = await checkBeds24Availability(propertySlug, syncRange.start, syncRange.end);
       } catch (err) {
         return res.status(503).json({
           ok: false,
@@ -301,8 +329,9 @@ export default async function handler(req, res) {
       if (!availability.available) {
         return res.status(409).json({
           ok: false,
-          error: 'Those dates cannot be blocked because one or more nights are already unavailable.',
-          unavailable_dates: availability.unavailableDates
+          error: 'Those dates cannot be blocked because the stay or its preparation buffer overlaps unavailable dates.',
+          unavailable_dates: availability.unavailableDates,
+          prep_buffer_nights: prepBufferNights
         });
       }
 
@@ -329,8 +358,8 @@ export default async function handler(req, res) {
       try {
         beds24Result = await setBeds24Blackout(
           propertySlug,
-          start_date,
-          end_date
+          syncRange.start,
+          syncRange.end
         );
       } catch (err) {
         // Roll back the BSTE record: never tell an owner the dates are blocked
@@ -356,7 +385,10 @@ export default async function handler(req, res) {
           end_date,
           note,
           block_id: block.id,
-          beds24_synced: true
+          beds24_synced: true,
+          prep_buffer_nights: prepBufferNights,
+          blackout_start_date: syncRange.start,
+          blackout_end_date: syncRange.end
         });
       } catch (webhookErr) {
         console.error('Webhook error after create:', String(webhookErr));
@@ -370,7 +402,10 @@ export default async function handler(req, res) {
         sync: {
           ok: true,
           provider: 'Beds24',
-          room_id: beds24Result.roomId
+          room_id: beds24Result.roomId,
+          prep_buffer_nights: prepBufferNights,
+          blackout_start_date: syncRange.start,
+          blackout_end_date: syncRange.end
         }
       });
     }
@@ -387,29 +422,42 @@ export default async function handler(req, res) {
       const existing = existingRows?.[0];
       if (!existing) return res.status(404).json({ ok: false, error: 'Owner block not found' });
 
+      const prepBufferNights = getPrepBufferNights(propertySlug);
+      const existingSyncRange = bufferedRange(
+        existing.start_date,
+        existing.end_date,
+        prepBufferNights
+      );
+
       let syncResult = { cleared: false, reapplied: 0 };
       try {
         const overlapsOther = await otherOverlappingOwnerBlocks(
           propertySlug,
           id,
           existing.start_date,
-          existing.end_date
+          existing.end_date,
+          prepBufferNights
         );
 
-        // Clear the exact range being deleted, then re-apply any overlapping
-        // owner blocks so partial overlaps do not accidentally reopen dates.
+        // Clear the owner stay plus its prep buffer, then re-apply the buffered
+        // ranges of any overlapping owner stays so no protected prep nights reopen.
         await clearBeds24Blackout(
           propertySlug,
-          existing.start_date,
-          existing.end_date
+          existingSyncRange.start,
+          existingSyncRange.end
         );
         syncResult.cleared = true;
 
         for (const other of overlapsOther) {
+          const otherSyncRange = bufferedRange(
+            other.start_date,
+            other.end_date,
+            prepBufferNights
+          );
           await setBeds24Blackout(
             propertySlug,
-            other.start_date,
-            other.end_date
+            otherSyncRange.start,
+            otherSyncRange.end
           );
           syncResult.reapplied += 1;
         }
@@ -435,7 +483,10 @@ export default async function handler(req, res) {
           end_date: existing.end_date || '',
           note: existing.note || '',
           block_id: existing.id || id,
-          beds24_synced: true
+          beds24_synced: true,
+          prep_buffer_nights: prepBufferNights,
+          blackout_start_date: existingSyncRange.start,
+          blackout_end_date: existingSyncRange.end
         });
       } catch (webhookErr) {
         console.error('Webhook error after delete:', String(webhookErr));
@@ -448,7 +499,8 @@ export default async function handler(req, res) {
         sync: {
           ok: true,
           provider: 'Beds24',
-          blackout_released: syncResult.cleared === true
+          blackout_released: syncResult.cleared === true,
+          prep_buffer_nights: prepBufferNights
         }
       });
     }
