@@ -8,9 +8,8 @@
 import fs from 'fs';
 import {
   checkBeds24Availability,
-  createBeds24OwnerBlock,
-  cancelBeds24OwnerBlock,
-  clearBeds24LegacyBlackout,
+  setBeds24Blackout,
+  clearBeds24Blackout,
   loadBeds24BookingsForProperty,
   getBeds24Diagnostics
 } from '../lib/beds24.js';
@@ -328,14 +327,11 @@ export default async function handler(req, res) {
 
       let beds24Result;
       try {
-        beds24Result = await createBeds24OwnerBlock({
+        beds24Result = await setBeds24Blackout(
           propertySlug,
-          blockId: block.id,
-          startDate: start_date,
-          endDate: end_date,
-          ownerName: owner.owner_name,
-          note
-        });
+          start_date,
+          end_date
+        );
       } catch (err) {
         // Roll back the BSTE record: never tell an owner the dates are blocked
         // when the live channel manager did not accept the block.
@@ -391,23 +387,22 @@ export default async function handler(req, res) {
       const existing = existingRows?.[0];
       if (!existing) return res.status(404).json({ ok: false, error: 'Owner block not found' });
 
-      let syncResult;
+      let syncResult = { cleared: false };
       try {
-        syncResult = await cancelBeds24OwnerBlock(propertySlug, id);
+        const overlapsOther = await otherOverlappingOwnerBlocks(
+          propertySlug,
+          id,
+          existing.start_date,
+          existing.end_date
+        );
 
-        // Existing BSTE owner blocks created before this API integration were
-        // manually blacked out in Beds24 and have no BSTE-linked Beds24 booking.
-        if (!syncResult.found) {
-          const overlapsOther = await otherOverlappingOwnerBlocks(
+        if (!overlapsOther.length) {
+          syncResult = await clearBeds24Blackout(
             propertySlug,
-            id,
             existing.start_date,
             existing.end_date
           );
-
-          if (!overlapsOther.length) {
-            await clearBeds24LegacyBlackout(propertySlug, existing.start_date, existing.end_date);
-          }
+          syncResult.cleared = true;
         }
       } catch (err) {
         return res.status(503).json({
@@ -444,7 +439,7 @@ export default async function handler(req, res) {
         sync: {
           ok: true,
           provider: 'Beds24',
-          legacy_blackout_released: !syncResult.found
+          blackout_released: syncResult.cleared === true
         }
       });
     }
