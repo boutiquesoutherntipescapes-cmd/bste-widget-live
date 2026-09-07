@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BSTE · Direct Booking Preview Test</title>
+  <style>
+    :root { --ink:#172231; --muted:#667085; --line:#e8e1d8; --paper:#fffdf9; --ok:#176b3a; --bad:#a51d1d; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#f7f3ed; color:var(--ink); }
+    .wrap { width:min(820px,calc(100% - 32px)); margin:48px auto; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:24px; padding:34px; box-shadow:0 14px 40px rgba(42,34,24,.06); }
+    h1 { margin:0 0 8px; font-family:Georgia,serif; font-size:36px; }
+    p { color:var(--muted); line-height:1.6; }
+    button { border:0; border-radius:999px; padding:14px 22px; font-weight:800; cursor:pointer; background:#172231; color:white; margin-top:10px; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .status { margin-top:24px; padding:20px; border-radius:16px; background:#f1eee9; white-space:pre-wrap; line-height:1.55; overflow:auto; }
+    .ok { color:var(--ok); font-weight:800; }
+    .bad { color:var(--bad); font-weight:800; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>BSTE Direct Booking Preview Test</h1>
+      <p><strong>Test version:</strong> Beds24 Direct Booking v1</p>
+      <p>This test creates a temporary 2-night direct booking in Legacy using dummy guest details and a test booking value. It also blocks one prep night before and after, then immediately cancels the booking and removes the prep blocks.</p>
+      <button id="run">Run safe direct-booking test</button>
+      <div id="status" class="status">Ready.</div>
+    </section>
+  </main>
+<script>
+const btn = document.getElementById('run');
+const out = document.getElementById('status');
+
+function show(data, ok) {
+  const title = ok
+    ? '✓ ' + (data.message || 'Direct booking test passed.')
+    : '⚠ ' + (data.error || 'Direct booking test failed.');
+  out.innerHTML = '<div class="' + (ok ? 'ok' : 'bad') + '">' + title + '</div>\n\n' +
+    JSON.stringify(data, null, 2);
+}
+
+btn.onclick = async () => {
+  if (!confirm('Run the safe Beds24 direct-booking test? A temporary dummy booking and prep blocks will be created and automatically removed.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Testing…';
+  out.textContent = 'Creating and verifying temporary direct booking…';
+  try {
+    const response = await fetch('/api/direct-booking-test', { method:'POST' });
+    const data = await response.json();
+    show(data, response.ok && data.ok);
+  } catch (err) {
+    show({ error:String(err) }, false);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Run safe direct-booking test';
+};
+</script>
+</body>
+</html>
