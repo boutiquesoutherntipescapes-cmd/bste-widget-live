@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BSTE · Operations Dashboard Preview</title>
+  <style>
+    :root{
+      --navy:#142131;--navy2:#1e2d3d;--ink:#1c2733;--muted:#75808e;--cream:#f7f2eb;
+      --paper:#fffdfa;--line:#e8dfd5;--gold:#a97945;--green:#176b3a;--red:#a51d1d;
+      --blue:#315d89;--shadow:0 18px 48px rgba(30,26,22,.08)
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit}
+    .app{display:grid;grid-template-columns:235px minmax(0,1fr);min-height:100vh}
+    .side{background:var(--navy);color:white;padding:26px 18px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+    .logo{font-family:Georgia,serif;font-size:20px;line-height:1.15;padding:0 10px 24px;border-bottom:1px solid rgba(255,255,255,.12)}
+    .logo small{display:block;font-family:Inter,sans-serif;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#cbb99f;margin-top:7px}
+    .nav{margin-top:22px;display:grid;gap:7px}
+    .nav a{color:#cfd6df;text-decoration:none;padding:11px 12px;border-radius:11px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:10px}
+    .nav a.active{background:rgba(255,255,255,.1);color:white}
+    .dot{width:7px;height:7px;border-radius:50%;background:#8190a0}
+    .nav .active .dot{background:#d4a568}
+    .sidefoot{margin-top:auto;padding:15px 10px 0;border-top:1px solid rgba(255,255,255,.12);font-size:11px;color:#9eabba;line-height:1.5}
+    .main{padding:28px 32px 54px;min-width:0}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:10px;font-weight:900;color:var(--gold)}
+    h1{font-family:Georgia,serif;font-size:37px;margin:5px 0 6px;line-height:1.05}
+    .sub{color:var(--muted);font-size:13px}
+    .topactions{display:flex;gap:10px;align-items:center}
+    .sync{background:#e8f3eb;color:var(--green);padding:9px 12px;border-radius:999px;font-size:11px;font-weight:900}
+    .btn{border:0;background:var(--navy);color:white;border-radius:999px;padding:11px 15px;font-size:12px;font-weight:900;cursor:pointer}
+    .btn.light{background:white;color:var(--ink);border:1px solid var(--line)}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+    .stat{padding:18px}
+    .statlabel{font-size:11px;color:var(--muted);font-weight:800}
+    .statvalue{font-family:Georgia,serif;font-size:28px;margin-top:7px}
+    .statnote{font-size:10px;color:var(--muted);margin-top:5px}
+    .layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(315px,.72fr);gap:18px;align-items:start}
+    .panel{padding:20px}
+    .panelhead{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:16px}
+    h2{font-family:Georgia,serif;font-size:23px;margin:0}
+    .mini{font-size:11px;color:var(--muted)}
+    .calendar{overflow:auto;border:1px solid var(--line);border-radius:14px;background:white}
+    .calgrid{min-width:940px}
+    .calhead,.calrow{display:grid;grid-template-columns:190px repeat(21,36px)}
+    .calhead{position:sticky;top:0;z-index:2;background:#f9f6f2;border-bottom:1px solid var(--line)}
+    .calname{padding:10px 12px;font-size:10px;font-weight:900;color:var(--muted);display:flex;align-items:center}
+    .day{height:44px;border-left:1px solid #eee7df;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:var(--muted)}
+    .day strong{font-size:11px;color:var(--ink);margin-top:2px}
+    .calrow{border-bottom:1px solid var(--line);position:relative}
+    .calrow:last-child{border-bottom:0}
+    .prop{padding:12px;display:flex;gap:10px;align-items:center;min-height:58px}
+    .thumb{width:38px;height:38px;border-radius:9px;object-fit:cover;background:#ddd}
+    .propname{font-size:11px;font-weight:900;line-height:1.2}
+    .propstate{font-size:9px;color:var(--muted);margin-top:3px}
+    .cell{height:58px;border-left:1px solid #f0e9e2;position:relative;background:#fff}
+    .cell.booked{background:#dfe8f1}
+    .cell.direct{background:#efe3d4}
+    .cell .cap{position:absolute;left:2px;right:2px;top:18px;height:22px;border-radius:7px;background:var(--blue);color:white;font-size:8px;font-weight:900;padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cell.direct .cap{background:var(--gold)}
+    .sectiongap{margin-top:18px}
+    .tablewrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{text-align:left;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em;padding:9px 8px;border-bottom:1px solid var(--line)}
+    td{padding:12px 8px;border-bottom:1px solid #eee7df;vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    .guest{font-weight:900}
+    .badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:#edf0f3;font-size:9px;font-weight:900}
+    .badge.direct{background:#f2e6d8;color:#7b542b}
+    .rightcol{display:grid;gap:18px}
+    .health{display:grid;gap:9px}
+    .healthrow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #eee6dc}
+    .healthrow:last-child{border-bottom:0}
+    .healthname{font-size:12px;font-weight:900}
+    .healthsub{font-size:9px;color:var(--muted);margin-top:3px}
+    .online{color:var(--green);font-size:10px;font-weight:900}
+    .pending{color:var(--gold);font-size:10px;font-weight:900}
+    .actionlist{display:grid;gap:8px}
+    .action{border:1px solid var(--line);background:white;border-radius:12px;padding:12px;text-align:left;cursor:pointer}
+    .action strong{display:block;font-size:11px}
+    .action span{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+    .alert{background:#fff8ed;border:1px solid #ecd8b8;border-radius:13px;padding:13px;font-size:10px;line-height:1.55;color:#76542f}
+    .loading{padding:22px;color:var(--muted);font-size:12px}
+    .error{color:var(--red);font-weight:800}
+    @media(max-width:1080px){.stats{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}.rightcol{grid-template-columns:1fr 1fr}.side{display:none}.app{grid-template-columns:1fr}}
+    @media(max-width:680px){.main{padding:20px 15px 40px}.stats{grid-template-columns:1fr 1fr}.rightcol{grid-template-columns:1fr}.top{flex-direction:column}.topactions{width:100%;flex-wrap:wrap}h1{font-size:31px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo">Boutique Southern Tip Escapes<small>Operations</small></div>
+    <nav class="nav">
+      <a class="active" href="#"><span class="dot"></span>Overview</a>
+      <a href="#calendar"><span class="dot"></span>Master Calendar</a>
+      <a href="#stays"><span class="dot"></span>Bookings</a>
+      <a href="#portfolio"><span class="dot"></span>Properties</a>
+      <a href="#"><span class="dot"></span>Owner Portals</a>
+      <a href="#"><span class="dot"></span>Statements</a>
+      <a href="#"><span class="dot"></span>Settings</a>
+    </nav>
+    <div class="sidefoot">
+      Preview dashboard<br>
+      Beds24 live reservation feed<br>
+      BSTE admin only
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div>
+        <div class="eyebrow">BSTE Operations</div>
+        <h1>Good afternoon, Bond.</h1>
+        <div class="sub" id="todayLabel">Your portfolio at a glance.</div>
+      </div>
+      <div class="topactions">
+        <div class="sync">● Beds24 live</div>
+        <button class="btn light" onclick="location.reload()">Refresh</button>
+        <button class="btn" onclick="alert('Direct booking capture will be enabled once PayFast is connected.')">+ New direct booking</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="card stat"><div class="statlabel">Upcoming stays</div><div id="sBookings" class="statvalue">—</div><div class="statnote">Confirmed across connected channels</div></div>
+      <div class="card stat"><div class="statlabel">Future booking value</div><div id="sRevenue" class="statvalue">—</div><div class="statnote">Current Beds24 reservation value</div></div>
+      <div class="card stat"><div class="statlabel">Booked nights</div><div id="sNights" class="statvalue">—</div><div class="statnote">Future confirmed room nights</div></div>
+      <div class="card stat"><div class="statlabel">Next arrival</div><div id="sNext" class="statvalue" style="font-size:21px">—</div><div id="sNextNote" class="statnote">Loading…</div></div>
+    </section>
+
+    <div class="layout">
+      <div>
+        <section id="calendar" class="card panel">
+          <div class="panelhead">
+            <div><h2>Master Calendar</h2><div class="mini">The next 21 days across the collection</div></div>
+            <div class="mini">OTA + direct reservations</div>
+          </div>
+          <div id="calendarWrap" class="calendar"><div class="loading">Loading live calendar…</div></div>
+        </section>
+
+        <section id="stays" class="card panel sectiongap">
+          <div class="panelhead">
+            <div><h2>Upcoming stays</h2><div class="mini">Guest, property, channel, pax and booking value in one place</div></div>
+          </div>
+          <div id="staysTable" class="tablewrap"><div class="loading">Loading reservations…</div></div>
+        </section>
+      </div>
+
+      <aside class="rightcol">
+        <section id="portfolio" class="card panel">
+          <div class="panelhead"><div><h2>Portfolio health</h2><div class="mini">Channel & system status</div></div></div>
+          <div id="health" class="health"><div class="loading">Checking connections…</div></div>
+        </section>
+
+        <section class="card panel">
+          <div class="panelhead"><div><h2>Quick actions</h2><div class="mini">Your daily shortcuts</div></div></div>
+          <div class="actionlist">
+            <button class="action" onclick="alert('This will open the final BSTE direct-booking form once PayFast is connected.')"><strong>Create direct booking</strong><span>Guest details, payment, Beds24 & prep buffers</span></button>
+            <button class="action" onclick="alert('Owner blocks are already live through each owner portal.')"><strong>Owner-use block</strong><span>Block dates with automatic prep nights</span></button>
+            <button class="action" onclick="alert('Owner statement automation is the next finance module.')"><strong>Owner statements</strong><span>Monthly payout and booking summary</span></button>
+            <button class="action" onclick="alert('C ToNic can be onboarded once the home becomes available.')"><strong>Add / onboard property</strong><span>Channels, rates, owner portal and direct booking</span></button>
+          </div>
+        </section>
+
+        <section class="card panel">
+          <div class="panelhead"><div><h2>System notes</h2><div class="mini">What still needs attention</div></div></div>
+          <div class="alert"><strong>PayFast:</strong> awaiting merchant verification. Checkout and Beds24 direct-booking plumbing are already tested.</div>
+          <div class="alert" style="margin-top:9px"><strong>Kalaya:</strong> Booking.com connection still needs final activation before Beds24 can push availability there.</div>
+          <div class="alert" style="margin-top:9px"><strong>C ToNic:</strong> intentionally not connected yet; onboarding can wait until the property is available again.</div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+const PROPERTY_META = {
+  'legacy-suiderstrand': { short:'Legacy', image:'/img/legacy.jpg' },
+  'kalay-ridge-villa-struisbaai': { short:'Kalaya', image:'/img/kalay-ridge-villa-struisbaai.jpg' },
+  'the-pearl-beach-villa-agulhas': { short:'Pearl', image:'/img/the-pearl-beach-villa-agulhas.jpg' }
+};
+const fmtMoney = v => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:0}).format(Number(v||0));
+const fmtDate = v => v ? new Intl.DateTimeFormat('en-ZA',{day:'numeric',month:'short'}).format(new Date(v+'T00:00:00')) : '—';
+const fmtLong = v => v ? new Intl.DateTimeFormat('en-ZA',{weekday:'short',day:'numeric',month:'short'}).format(new Date(v+'T00:00:00')) : '—';
+const addDays=(value,n)=>{const d=new Date(value+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const today = new Date().toISOString().slice(0,10);
+document.getElementById('todayLabel').textContent = new Intl.DateTimeFormat('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(today+'T00:00:00')) + ' · Your portfolio at a glance';
+
+function renderStats(data){
+  document.getElementById('sBookings').textContent = String(data.stats.future_bookings || 0);
+  document.getElementById('sRevenue').textContent = fmtMoney(data.stats.future_revenue_zar);
+  document.getElementById('sNights').textContent = String(data.stats.booked_nights || 0);
+  const n = data.stats.next_arrival;
+  document.getElementById('sNext').textContent = n ? fmtDate(n.arrival) : 'None';
+  document.getElementById('sNextNote').textContent = n ? n.property_name + ' · ' + n.guest_name : 'No upcoming arrival';
+}
+
+function renderCalendar(data){
+  const dates = Array.from({length:21},(_,i)=>addDays(data.today,i));
+  let html = '<div class="calgrid"><div class="calhead"><div class="calname">PROPERTY</div>';
+  html += dates.map(d=>{
+    const dt=new Date(d+'T00:00:00');
+    const dow=new Intl.DateTimeFormat('en-ZA',{weekday:'short'}).format(dt);
+    return '<div class="day">'+dow+'<strong>'+dt.getDate()+'</strong></div>';
+  }).join('');
+  html += '</div>';
+
+  for(const p of data.properties){
+    const meta=PROPERTY_META[p.property_slug]||{short:p.display_name,image:''};
+    html += '<div class="calrow"><div class="prop">'+
+      '<img class="thumb" src="'+(p.thumbnail_url||meta.image||'')+'" alt="">'+
+      '<div><div class="propname">'+meta.short+'</div><div class="propstate">'+(p.connected?'Beds24 synced':'Needs attention')+'</div></div></div>';
+
+    for(const d of dates){
+      const hit = (p.bookings||[]).find(b => d >= b.arrival && d < b.departure);
+      const direct = hit && (String(hit.channel).toLowerCase().includes('direct') || hit.custom1==='BSTE_DIRECT_BOOKING');
+      html += '<div class="cell '+(hit?'booked ':'')+(direct?'direct':'')+'">'+
+        (hit?'<div class="cap" title="'+hit.guest_name+' · '+hit.channel+'">'+hit.guest_name+'</div>':'')+
+        '</div>';
+    }
+    html += '</div>';
+  }
+  html += '<div class="calrow"><div class="prop"><div class="thumb" style="display:grid;place-items:center;background:#ece4da;font-weight:900">C</div><div><div class="propname">C ToNic</div><div class="propstate">Onboarding paused</div></div></div>'+
+    dates.map(()=>'<div class="cell"></div>').join('')+'</div>';
+  html += '</div>';
+  document.getElementById('calendarWrap').innerHTML = html;
+}
+
+function renderTable(data){
+  const rows = (data.bookings||[]).filter(b=>b.departure>=data.today).slice(0,12);
+  if(!rows.length){
+    document.getElementById('staysTable').innerHTML='<div class="loading">No upcoming stays found.</div>'; return;
+  }
+  let html='<table><thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Pax</th><th>Channel</th><th>Value</th></tr></thead><tbody>';
+  for(const b of rows){
+    const direct=String(b.channel).toLowerCase().includes('direct')||b.custom1==='BSTE_DIRECT_BOOKING';
+    html+='<tr>'+
+      '<td><div class="guest">'+b.guest_name+'</div><div class="mini">'+(b.email||'')+'</div></td>'+
+      '<td>'+b.property_name+'</td>'+
+      '<td>'+fmtDate(b.arrival)+' → '+fmtDate(b.departure)+'<div class="mini">'+b.nights+' nights</div></td>'+
+      '<td>'+(b.guests||'—')+'</td>'+
+      '<td><span class="badge '+(direct?'direct':'')+'">'+b.channel+'</span></td>'+
+      '<td><strong>'+(Number(b.price)>0?fmtMoney(b.price):'—')+'</strong></td>'+
+      '</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('staysTable').innerHTML=html;
+}
+
+function renderHealth(data){
+  let html='';
+  for(const p of data.properties){
+    const meta=PROPERTY_META[p.property_slug]||{short:p.display_name};
+    html+='<div class="healthrow"><div><div class="healthname">'+meta.short+'</div><div class="healthsub">Beds24 · 1-night prep buffer</div></div>'+
+      '<div class="'+(p.connected?'online':'pending')+'">'+(p.connected?'● Connected':'Needs attention')+'</div></div>';
+  }
+  html+='<div class="healthrow"><div><div class="healthname">C ToNic</div><div class="healthsub">Not yet listed on channels</div></div><div class="pending">Onboarding</div></div>';
+  document.getElementById('health').innerHTML=html;
+}
+
+async function load(){
+  try{
+    const r=await fetch('/api/dashboard-data');
+    const data=await r.json();
+    if(!r.ok||!data.ok) throw new Error(data.error||'Dashboard feed failed');
+    renderStats(data);renderCalendar(data);renderTable(data);renderHealth(data);
+  }catch(err){
+    document.getElementById('calendarWrap').innerHTML='<div class="loading error">'+String(err)+'</div>';
+    document.getElementById('staysTable').innerHTML='<div class="loading error">Could not load live reservations.</div>';
+    document.getElementById('health').innerHTML='<div class="loading error">Could not verify connections.</div>';
+  }
+}
+load();
+</script>
+</body>
+</html>
