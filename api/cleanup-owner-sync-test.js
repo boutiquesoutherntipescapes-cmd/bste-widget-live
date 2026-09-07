@@ -35,15 +35,12 @@ function overlaps(aStart,aEnd,bStart,bEnd){
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
-  if (String(process.env.VERCEL_ENV || '').toLowerCase() !== 'preview') {
-    return res.status(403).json({ok:false,error:'Preview only'});
-  }
   if (req.method !== 'GET') return res.status(405).json({ok:false,error:'GET only'});
 
   const propertySlug='legacy-suiderstrand';
   const start='2027-03-06';
   const end='2027-03-07';
-  const mode=String(req.query?.mode || 'inspect');
+  const mode='delete';
 
   try {
     const rows = await supabaseFetch(
@@ -51,9 +48,6 @@ export default async function handler(req,res){
     );
     const matches=(rows||[]).filter(r=>String(r.note||'').toLowerCase().includes('bste sync test'));
 
-    if (mode !== 'delete') {
-      return res.status(200).json({ok:true,mode:'inspect',matches,all_rows:rows||[]});
-    }
     if (matches.length !== 1) {
       return res.status(409).json({ok:false,error:'Expected exactly one BSTE sync test block',matches,all_rows:rows||[]});
     }
