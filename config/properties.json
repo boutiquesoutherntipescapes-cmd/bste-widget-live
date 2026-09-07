@@ -32,7 +32,8 @@
         "cleaning_fee_zar": 1000
       }
     ],
-    "beds24_room_id": 724919
+    "beds24_room_id": 724919,
+    "prep_buffer_nights": 1
   },
   {
     "property_slug": "kalay-ridge-villa-struisbaai",
@@ -67,7 +68,8 @@
         "cleaning_fee_zar": 1000
       }
     ],
-    "beds24_room_id": 726060
+    "beds24_room_id": 726060,
+    "prep_buffer_nights": 1
   },
   {
     "property_slug": "the-pearl-beach-villa-agulhas",
@@ -101,6 +103,7 @@
         "min_stay_nights": 7,
         "cleaning_fee_zar": 1000
       }
-    ]
+    ],
+    "prep_buffer_nights": 1
   }
 ]
