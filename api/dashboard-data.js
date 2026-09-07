@@ -93,6 +93,71 @@ export default async function handler(req, res) {
     const bookedNights = future.reduce((sum,b) => sum + Number(b.nights || 0), 0);
     const nextArrival = future.find(b => String(b.arrival) >= today) || null;
 
+    const operations = [];
+    for (const booking of future) {
+      const prepDate = addDays(booking.arrival, -1);
+      const resetDate = booking.departure;
+
+      operations.push({
+        date: prepDate,
+        type: 'prep',
+        priority: prepDate === today ? 'today' : 'upcoming',
+        property_slug: booking.property_slug,
+        property_name: booking.property_name,
+        booking_id: booking.id,
+        guest_name: booking.guest_name,
+        channel: booking.channel,
+        label: 'Prep home',
+        detail: `Prepare for ${booking.guest_name} arriving ${booking.arrival}`
+      });
+
+      operations.push({
+        date: booking.arrival,
+        type: 'arrival',
+        priority: booking.arrival === today ? 'today' : 'upcoming',
+        property_slug: booking.property_slug,
+        property_name: booking.property_name,
+        booking_id: booking.id,
+        guest_name: booking.guest_name,
+        channel: booking.channel,
+        label: 'Guest arrival',
+        detail: `${booking.guest_name} · ${booking.guests || 0} guests · ${booking.channel}`
+      });
+
+      operations.push({
+        date: booking.departure,
+        type: 'departure',
+        priority: booking.departure === today ? 'today' : 'upcoming',
+        property_slug: booking.property_slug,
+        property_name: booking.property_name,
+        booking_id: booking.id,
+        guest_name: booking.guest_name,
+        channel: booking.channel,
+        label: 'Checkout & inspection',
+        detail: `${booking.guest_name} checks out`
+      });
+
+      operations.push({
+        date: resetDate,
+        type: 'reset',
+        priority: resetDate === today ? 'today' : 'upcoming',
+        property_slug: booking.property_slug,
+        property_name: booking.property_name,
+        booking_id: booking.id,
+        guest_name: booking.guest_name,
+        channel: booking.channel,
+        label: 'Post-stay reset',
+        detail: 'Inspection, cleaning handover and reset'
+      });
+    }
+
+    const operationHorizon = addDays(today, 7);
+    const upcomingOperations = operations
+      .filter(item => item.date >= today && item.date <= operationHorizon)
+      .sort((a,b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label));
+
+    const todayOperations = upcomingOperations.filter(item => item.date === today);
+
     return res.status(200).json({
       ok: true,
       generated_at: new Date().toISOString(),
@@ -102,10 +167,15 @@ export default async function handler(req, res) {
         booked_nights: bookedNights,
         future_revenue_zar: totalRevenue,
         direct_bookings: direct.length,
-        next_arrival: nextArrival
+        next_arrival: nextArrival,
+        operations_today: todayOperations.length,
+        arrivals_today: todayOperations.filter(x => x.type === 'arrival').length,
+        departures_today: todayOperations.filter(x => x.type === 'departure').length,
+        prep_today: todayOperations.filter(x => x.type === 'prep').length
       },
       properties: propertyResults,
-      bookings: future
+      bookings: future,
+      operations: upcomingOperations
     });
   } catch (err) {
     return res.status(500).json({
