@@ -7,7 +7,8 @@
 import {
   getBeds24Diagnostics,
   createBeds24OwnerBlock,
-  cancelBeds24OwnerBlock
+  cancelBeds24OwnerBlock,
+  findBeds24AvailableNight
 } from '../lib/beds24.js';
 
 function cors(res) {
@@ -51,10 +52,24 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      // Far-future date deliberately chosen to avoid affecting current selling inventory.
+      // Pick a genuinely available night inside the next year.
+      // Beds24 can reject dates outside a property's sellable booking window.
       const blockId = `preview-smoke-${Date.now()}`;
-      const startDate = '2030-02-01';
-      const endDate = '2030-02-02';
+
+      const addDays = (days) => {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() + days);
+        return d.toISOString().slice(0, 10);
+      };
+
+      const testNight = await findBeds24AvailableNight(
+        'legacy-suiderstrand',
+        addDays(180),
+        addDays(240)
+      );
+
+      const startDate = testNight.startDate;
+      const endDate = testNight.endDate;
 
       const created = await createBeds24OwnerBlock({
         propertySlug: 'legacy-suiderstrand',
