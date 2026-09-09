@@ -245,7 +245,7 @@ $('paymentBtn').onclick = async () => {
   notice.textContent = 'Creating a temporary reservation hold and connecting securely to PayFast…';
 
   try{
-    const r = await fetch('/api/payfast-start',{
+    const r = await fetch('/api/payfast?action=start',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({...draft, checkout_id:checkoutId})
