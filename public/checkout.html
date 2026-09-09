@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BSTE · Secure Direct Booking</title>
+  <style>
+    :root{
+      --ink:#182431;--muted:#687282;--paper:#fffdf9;--sand:#f4eee6;--line:#e6ddd2;
+      --accent:#a87d4c;--ok:#176b3a;--bad:#a51d1d;--shadow:0 24px 70px rgba(34,30,25,.09)
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#f6f1ea;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .shell{width:min(1180px,calc(100% - 30px));margin:30px auto 60px}
+    .brand{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .brandmark{font-family:Georgia,serif;font-size:19px;letter-spacing:.03em}
+    .secure{font-size:12px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:24px;align-items:start}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+    .main{padding:34px}
+    .summary{overflow:hidden;position:sticky;top:20px}
+    .hero{width:100%;aspect-ratio:16/9;object-fit:cover;background:#ddd}
+    .suminner{padding:24px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--accent);font-weight:800}
+    h1{font-family:Georgia,serif;font-size:38px;line-height:1.05;margin:8px 0 12px;font-weight:700}
+    h2{font-family:Georgia,serif;font-size:25px;margin:0 0 18px}
+    p{color:var(--muted);line-height:1.65}
+    .step{display:flex;gap:10px;align-items:center;margin:24px 0 14px;font-weight:800}
+    .num{width:28px;height:28px;border-radius:50%;background:var(--ink);color:white;display:grid;place-items:center;font-size:13px}
+    .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field{display:flex;flex-direction:column;gap:7px}
+    .field.full{grid-column:1/-1}
+    label{font-size:12px;font-weight:800}
+    input,select,textarea{width:100%;border:1px solid #d9d2c9;border-radius:12px;background:white;padding:12px 13px;font:inherit;color:var(--ink)}
+    textarea{min-height:92px;resize:vertical}
+    .row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #eee6dc}
+    .row:last-child{border-bottom:0}
+    .row strong{font-weight:800}
+    .total{font-size:20px;padding-top:14px}
+    .status{padding:14px;border-radius:12px;margin:14px 0;background:var(--sand);font-size:13px;line-height:1.5}
+    .ok{color:var(--ok);font-weight:800}.bad{color:var(--bad);font-weight:800}
+    button{border:0;border-radius:999px;background:var(--ink);color:white;padding:14px 22px;font-weight:800;font-size:14px;cursor:pointer}
+    button.secondary{background:#ede7df;color:var(--ink)}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .check{display:flex;gap:9px;align-items:flex-start;margin-top:14px;color:var(--muted);font-size:13px}
+    .check input{width:auto;margin-top:3px}
+    .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}
+    .pill{background:var(--sand);border-radius:12px;padding:10px;text-align:center;font-size:11px;font-weight:800}
+    .hidden{display:none!important}
+    .review{background:var(--sand);border-radius:16px;padding:18px;margin-top:14px}
+    .review p{margin:5px 0}
+    @media(max-width:840px){.grid{grid-template-columns:1fr}.summary{position:static;order:-1}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.main{padding:24px}h1{font-size:32px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">
+      <div class="brandmark">Boutique Southern Tip Escapes</div>
+      <div class="secure">Direct booking · local support</div>
+    </div>
+
+    <div class="grid">
+      <section class="card main">
+        <div class="eyebrow">Direct with BSTE</div>
+        <h1>Complete your reservation</h1>
+        <p>Book directly with our local team. Your dates and rate are checked against live availability before you proceed.</p>
+
+        <div id="availabilityStatus" class="status">Checking live availability and rate…</div>
+
+        <form id="guestForm" class="hidden" novalidate>
+          <div class="step"><span class="num">1</span> Guest details</div>
+          <div class="fields">
+            <div class="field"><label>First name</label><input id="firstName" autocomplete="given-name" required></div>
+            <div class="field"><label>Last name</label><input id="lastName" autocomplete="family-name" required></div>
+            <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email" required></div>
+            <div class="field"><label>Mobile / WhatsApp</label><input id="mobile" autocomplete="tel" required></div>
+            <div class="field"><label>Country</label><input id="country" autocomplete="country-name" required></div>
+            <div class="field"><label>Adults</label><input id="adults" type="number" min="1" value="2" required></div>
+            <div class="field"><label>Children</label><input id="children" type="number" min="0" value="0"></div>
+            <div class="field full"><label>Special requests <span style="font-weight:400;color:var(--muted)">(optional)</span></label><textarea id="requests" placeholder="Arrival notes, children’s ages, special occasions or anything we should know."></textarea></div>
+          </div>
+
+          <label class="check">
+            <input id="terms" type="checkbox" required>
+            <span>I confirm the booking details are correct and understand the reservation is only confirmed after successful payment.</span>
+          </label>
+
+          <div class="actions">
+            <button type="submit">Review booking</button>
+          </div>
+        </form>
+
+        <div id="reviewPanel" class="hidden">
+          <div class="step"><span class="num">2</span> Review your reservation</div>
+          <div class="review" id="reviewText"></div>
+          <div class="status">
+            <strong>Secure payment preview:</strong> the final payment step is being connected. No payment will be taken on this preview page.
+          </div>
+          <div class="actions">
+            <button id="editBtn" class="secondary">Edit details</button>
+            <button id="paymentBtn" disabled>Continue to secure payment</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card summary">
+        <img id="propertyImage" class="hero" alt="">
+        <div class="suminner">
+          <div class="eyebrow">Your stay</div>
+          <h2 id="propertyName">BSTE Villa</h2>
+          <div class="row"><span>Check-in</span><strong id="checkIn">—</strong></div>
+          <div class="row"><span>Check-out</span><strong id="checkOut">—</strong></div>
+          <div class="row"><span>Nights</span><strong id="nights">—</strong></div>
+          <div class="row"><span>Guests</span><strong id="guests">—</strong></div>
+          <div class="row"><span>Accommodation</span><strong id="accommodation">—</strong></div>
+          <div class="row"><span>Cleaning</span><strong id="cleaning">—</strong></div>
+          <div class="row total"><span>Total</span><strong id="total">—</strong></div>
+          <p style="font-size:12px;margin-bottom:0">Your direct-booking total includes the cleaning fee. Final payment will be completed securely once the booking is confirmed.</p>
+          <div class="trust">
+            <div class="pill">Live availability</div>
+            <div class="pill">Local support</div>
+            <div class="pill">Secure checkout</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+<script>
+const META = {
+  'legacy-suiderstrand': { name:'Legacy Beach Villa', image:'/img/legacy.jpg' },
+  'kalay-ridge-villa-struisbaai': { name:'Kalaya Ridge Villa', image:'/img/kalay-ridge-villa-struisbaai.jpg' },
+  'the-pearl-beach-villa-agulhas': { name:'The Pearl Beach Villa Agulhas', image:'/img/the-pearl-beach-villa-agulhas.jpg' }
+};
+const qs = new URLSearchParams(location.search);
+const property = qs.get('property') || qs.get('property_slug') || '';
+const checkIn = qs.get('check_in') || '';
+const checkOut = qs.get('check_out') || '';
+const guestCount = Number(qs.get('guests') || 2);
+const meta = META[property] || { name:'Boutique Southern Tip Escape', image:'/img/legacy.jpg' };
+let quote = null;
+
+const $ = id => document.getElementById(id);
+$('propertyName').textContent = meta.name;
+$('propertyImage').src = meta.image;
+$('propertyImage').alt = meta.name;
+$('checkIn').textContent = fmtDate(checkIn);
+$('checkOut').textContent = fmtDate(checkOut);
+$('guests').textContent = String(guestCount || 2);
+$('adults').value = String(Math.max(1, guestCount || 2));
+
+function fmtZar(v){ return new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(Number(v||0)); }
+function fmtDate(value){
+  if(!value) return '—';
+  const d = new Date(value + 'T00:00:00');
+  return new Intl.DateTimeFormat('en-ZA',{weekday:'short',day:'numeric',month:'long',year:'numeric'}).format(d);
+}
+
+async function initialise(){
+  if(!property || !checkIn || !checkOut){
+    $('availabilityStatus').innerHTML = '<span class="bad">Missing property or stay dates. Return to the property page and choose your dates again.</span>';
+    return;
+  }
+  try{
+    const a = await fetch('/api/availability?' + new URLSearchParams({property_slug:property,check_in:checkIn,check_out:checkOut}));
+    const av = await a.json();
+    if(!a.ok) throw new Error(av.error || 'Availability check failed');
+    if(!av.available){
+      $('availabilityStatus').innerHTML = '<span class="bad">These dates are no longer available when the preparation buffer is included. Please choose different dates.</span>';
+      return;
+    }
+
+    const q = await fetch('/api/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({property_slug:property,check_in:checkIn,check_out:checkOut})});
+    quote = await q.json();
+    if(!q.ok) throw new Error(quote.error || 'Quote failed');
+    if(!quote.min_stay_ok){
+      $('availabilityStatus').innerHTML = '<span class="bad">This stay does not meet the minimum stay requirement of ' + quote.min_stay_required + ' nights.</span>';
+      return;
+    }
+
+    $('availabilityStatus').innerHTML = '<span class="ok">✓ Your dates are available.</span>';
+    $('nights').textContent = String(quote.nights);
+    $('total').textContent = fmtZar(quote.total_price_zar);
+    $('guestForm').classList.remove('hidden');
+  }catch(err){
+    $('availabilityStatus').innerHTML = '<span class="bad">' + String(err.message || err) + '</span>';
+  }
+}
+
+$('guestForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if(!$('guestForm').reportValidity()) return;
+  const draft = {
+    property,
+    check_in:checkIn,
+    check_out:checkOut,
+    guests:guestCount,
+    first_name:$('firstName').value.trim(),
+    last_name:$('lastName').value.trim(),
+    email:$('email').value.trim(),
+    mobile:$('mobile').value.trim(),
+    country:$('country').value.trim(),
+    adults:Number($('adults').value||1),
+    children:Number($('children').value||0),
+    special_requests:$('requests').value.trim(),
+    total_price_zar:Number(quote?.total_price_zar||0),
+    nights:Number(quote?.nights||0)
+  };
+  sessionStorage.setItem('bste_checkout_draft', JSON.stringify(draft));
+  $('reviewText').innerHTML =
+    '<p><strong>' + draft.first_name + ' ' + draft.last_name + '</strong></p>' +
+    '<p>' + draft.email + ' · ' + draft.mobile + '</p>' +
+    '<p>' + draft.adults + ' adult' + (draft.adults===1?'':'s') + (draft.children ? ' · ' + draft.children + ' child' + (draft.children===1?'':'ren') : '') + '</p>' +
+    '<p>' + fmtDate(checkIn) + ' → ' + fmtDate(checkOut) + ' · ' + draft.nights + ' nights</p>' +
+    '<p>Accommodation ' + fmtZar(quote.subtotal_nightly) + ' · Cleaning ' + fmtZar(quote.cleaning_fee_zar) + '</p>' +
+    '<p><strong>Total ' + fmtZar(draft.total_price_zar) + '</strong></p>';
+  $('guestForm').classList.add('hidden');
+  $('reviewPanel').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+$('editBtn').onclick = () => {
+  $('reviewPanel').classList.add('hidden');
+  $('guestForm').classList.remove('hidden');
+};
+
+initialise();
+</script>
+</body>
+</html>
