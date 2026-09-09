@@ -14,6 +14,12 @@ import {
   getPropertyConfig,
   addDays
 } from '../lib/booking-pricing.js';
+import crypto from 'crypto';
+import {
+  RENTAL_TERMS_VERSION,
+  RENTAL_TERMS_SECTIONS,
+  rentalTermsDigest
+} from '../lib/rental-terms.js';
 import {
   getPayfastConfig,
   buildPayfastFields,
@@ -66,6 +72,28 @@ function checkoutPayload(src) {
   };
 }
 
+
+function acceptanceFingerprint(req) {
+  const secret = String(
+    process.env.PAYFAST_STATE_SECRET ||
+    process.env.BSTE_WEBHOOK_SECRET ||
+    process.env.BEDS24_REFRESH_TOKEN ||
+    ''
+  ).trim();
+
+  const ip = String(req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || '')
+    .split(',')[0]
+    .trim();
+  const ua = String(req.headers?.['user-agent'] || '').trim();
+
+  if (!secret) return '';
+  return crypto.createHmac('sha256', secret).update(ip + '|' + ua).digest('hex');
+}
+
+function normalisePersonName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function amountMatches(expected, actual) {
   return Math.abs(Number(expected || 0) - Number(actual || 0)) <= 0.01;
 }
@@ -99,6 +127,37 @@ async function startPayment(req, res) {
     if (!checkoutId) {
       return res.status(400).json({ ok:false, error:'Missing checkout session ID' });
     }
+
+    const termsAccepted = body.terms_accepted === true || String(body.terms_accepted || '').toLowerCase() === 'true';
+    const riskAccepted = body.risk_terms_accepted === true || String(body.risk_terms_accepted || '').toLowerCase() === 'true';
+    const termsVersion = cleanText(body.terms_version, 100);
+    const signatureName = cleanText(body.signature_name, 150);
+
+    if (!termsAccepted || !riskAccepted) {
+      return res.status(400).json({
+        ok:false,
+        error:'The Short-Term Rental Agreement and highlighted risk terms must be accepted before payment.'
+      });
+    }
+
+    if (termsVersion !== RENTAL_TERMS_VERSION) {
+      return res.status(409).json({
+        ok:false,
+        error:'The rental agreement has been updated. Please review the current version before continuing.'
+      });
+    }
+
+    const expectedName = normalisePersonName(firstName + ' ' + lastName);
+    if (!signatureName || normalisePersonName(signatureName) !== expectedName) {
+      return res.status(400).json({
+        ok:false,
+        error:'Please type the booking holder’s full name exactly as entered above to sign the agreement.'
+      });
+    }
+
+    const acceptedAt = new Date().toISOString();
+    const termsDigest = rentalTermsDigest();
+    const acceptanceId = acceptanceFingerprint(req);
 
     const quote = buildBookingQuote(propertySlug, arrival, departure);
     if (!quote.minStayOk) {
@@ -162,12 +221,18 @@ async function startPayment(req, res) {
         'BSTE direct checkout awaiting PayFast payment',
         `Accommodation: R${quote.subtotalNightly.toFixed(2)}`,
         `Cleaning: R${quote.cleaningFee.toFixed(2)}`,
+        `Rental Agreement ${RENTAL_TERMS_VERSION} accepted ${acceptedAt} by ${signatureName}`,
+        acceptanceId ? `Acceptance ref: ${acceptanceId.slice(0,24)}` : '',
         specialRequests ? `Guest request: ${specialRequests}` : ''
       ].filter(Boolean).join(' · '),
       notifyGuest:false,
       notifyHost:false,
       allowWebhooks:true,
-      status:'request'
+      status:'request',
+      custom3:RENTAL_TERMS_VERSION,
+      custom4:acceptedAt,
+      custom5:termsDigest,
+      custom6:signatureName
     });
 
     createdBooking = created.booking;
@@ -386,6 +451,15 @@ export default async function handler(req,res) {
   if(req.method === 'OPTIONS') return res.status(204).end();
 
   const action=String(req.query?.action || '').toLowerCase();
+
+  if(action === 'terms' && req.method === 'GET') {
+    return res.status(200).json({
+      ok:true,
+      version:RENTAL_TERMS_VERSION,
+      digest:rentalTermsDigest(),
+      sections:RENTAL_TERMS_SECTIONS
+    });
+  }
 
   if(action === 'start' && req.method === 'POST') return startPayment(req,res);
   if(action === 'itn' && req.method === 'POST') return processItn(req,res);
