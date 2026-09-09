@@ -30,7 +30,7 @@ const payload={
 (async()=>{
   const status=document.getElementById('status');
   try{
-    const r=await fetch('/api/payfast-cancel',{
+    const r=await fetch('/api/payfast?action=cancel',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
