@@ -366,15 +366,15 @@
     }
 
     function addDays(dateString, days) {
-      const d = new Date(dateString + 'T00:00:00');
-      d.setDate(d.getDate() + Number(days || 0));
+      const d = new Date(dateString + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + Number(days || 0));
       return d.toISOString().slice(0, 10);
     }
 
     function nightsBetween(start, end) {
       if (!start || !end) return 0;
       return Math.max(0, Math.round(
-        (new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000
+        (new Date(end + 'T00:00:00Z') - new Date(start + 'T00:00:00Z')) / 86400000
       ));
     }
 
