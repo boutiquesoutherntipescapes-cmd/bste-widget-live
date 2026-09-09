@@ -11,7 +11,8 @@ import {
   setBeds24Blackout,
   clearBeds24Blackout,
   loadBeds24BookingsForProperty,
-  getBeds24Diagnostics
+  getBeds24Diagnostics,
+  getBeds24BlackoutDates
 } from '../lib/beds24.js';
 
 function cors(res) {
@@ -92,6 +93,11 @@ function addDays(dateString, days) {
   const d = new Date(String(dateString) + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + Number(days || 0));
   return d.toISOString().slice(0, 10);
+}
+
+function getPropertyConfig(propertySlug) {
+  const cfg = getConfig();
+  return (cfg.properties || []).find(p => p.property_slug === propertySlug) || null;
 }
 
 function getPrepBufferNights(propertySlug) {
@@ -286,16 +292,101 @@ export default async function handler(req, res) {
       );
 
       const live = await loadBookings(propertySlug);
+      const prop = getPropertyConfig(propertySlug);
+      const prepBufferNights = getPrepBufferNights(propertySlug);
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Owner blocks are stored in Supabase, but the actual channel protection is
+      // a Beds24 blackout. Verify future owner blocks against the live Beds24
+      // calendar so the dashboard can flag any drift instead of assuming sync.
+      const futureBlocks = (ownerBlocks || []).filter(block => String(block.end_date || '') >= today);
+      let verifiedBlocks = ownerBlocks || [];
+      let ownerSync = {
+        checked: false,
+        verified_count: 0,
+        attention_count: 0
+      };
+
+      if (live.sync?.ok === true && futureBlocks.length) {
+        try {
+          const protectedRanges = futureBlocks.map(block => bufferedRange(
+            block.start_date,
+            block.end_date,
+            prepBufferNights
+          ));
+
+          const queryStart = protectedRanges
+            .map(range => range.start)
+            .sort()[0];
+
+          const queryLastNight = protectedRanges
+            .map(range => addDays(range.end, -1))
+            .sort()
+            .slice(-1)[0];
+
+          const blackout = await getBeds24BlackoutDates(
+            propertySlug,
+            queryStart,
+            queryLastNight
+          );
+
+          verifiedBlocks = (ownerBlocks || []).map(block => {
+            if (String(block.end_date || '') < today) {
+              return { ...block, sync_verified: null };
+            }
+
+            const protectedRange = bufferedRange(
+              block.start_date,
+              block.end_date,
+              prepBufferNights
+            );
+
+            const missingDates = [];
+            for (
+              let d = protectedRange.start;
+              d < protectedRange.end;
+              d = addDays(d, 1)
+            ) {
+              if (!blackout.blackoutDates.has(d)) missingDates.push(d);
+            }
+
+            return {
+              ...block,
+              prep_start_date: protectedRange.start,
+              prep_end_date: protectedRange.end,
+              sync_verified: missingDates.length === 0,
+              missing_blackout_dates: missingDates
+            };
+          });
+
+          ownerSync = {
+            checked: true,
+            verified_count: verifiedBlocks.filter(b => b.sync_verified === true).length,
+            attention_count: verifiedBlocks.filter(b => b.sync_verified === false).length
+          };
+        } catch (err) {
+          ownerSync = {
+            checked: false,
+            verified_count: 0,
+            attention_count: 0,
+            detail: String(err)
+          };
+        }
+      }
 
       return res.status(200).json({
         ok: true,
         property_slug: propertySlug,
+        property_name: prop?.display_name || propertySlug,
         owner_name: owner.owner_name,
-        blocks: ownerBlocks || [],
+        prep_buffer_nights: prepBufferNights,
+        refreshed_at: new Date().toISOString(),
+        blocks: verifiedBlocks,
         bookings: live.bookings || [],
         diagnostics: {
           owner_blocks_count: (ownerBlocks || []).length,
-          external_bookings_count: (live.bookings || []).length,
+          guest_bookings_count: (live.bookings || []).length,
+          owner_block_sync: ownerSync,
           channel_sync: live.sync
         }
       });
