@@ -1,8 +1,10 @@
 import {
   getBeds24BookingById,
   updateBeds24DirectBookingStatus,
-  recordBeds24Payment
+  recordBeds24Payment,
+  setBeds24Blackout
 } from '../lib/beds24.js';
+import { getPropertyConfig, addDays } from '../lib/booking-pricing.js';
 import {
   getPayfastConfig,
   generatePayfastSignature,
@@ -98,6 +100,20 @@ export default async function handler(req, res) {
           : 'PayFast payment verified',
         true
       );
+    }
+
+    // Re-assert the BSTE preparation buffers after payment. This also protects
+    // against a rare race where the guest cancelled the PayFast page at the
+    // same moment a successful ITN was already in flight.
+    const propertySlug = String(data.custom_str1 || '').trim();
+    const arrival = String(data.custom_str2 || booking.arrival || '').trim();
+    const departure = String(data.custom_str3 || booking.departure || '').trim();
+    const prop = getPropertyConfig(propertySlug);
+    const prep = Math.max(0, Number(prop?.prep_buffer_nights ?? 1));
+
+    if (propertySlug && arrival && departure && prep > 0) {
+      await setBeds24Blackout(propertySlug, addDays(arrival, -prep), arrival);
+      await setBeds24Blackout(propertySlug, departure, addDays(departure, prep));
     }
 
     return res.status(200).send('OK');
