@@ -170,9 +170,51 @@
       display: none;
     }
 
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .summary-card {
+      border: 1px solid #ece4da;
+      border-radius: 14px;
+      padding: 15px;
+      background: #fffdfb;
+    }
+
+    .summary-value {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 3px 0 4px;
+    }
+
+    .summary-label {
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .pill.sync {
+      background: #e8f4ec;
+      color: #166534;
+    }
+
+    .pill.attention {
+      background: #fde7e7;
+      color: #9f1d1d;
+    }
+
+    .pill.request {
+      background: #e8eef8;
+      color: #294a78;
+    }
+
     @media (max-width: 800px) {
       .grid,
-      .two-col {
+      .two-col,
+      .summary-grid {
         grid-template-columns: 1fr;
       }
 
@@ -229,11 +271,33 @@
         <p id="formMessage" class="muted"></p>
       </div>
 
+      <div class="card">
+        <h2>At a glance</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div id="guestStayCount" class="summary-value">—</div>
+            <div class="summary-label">Upcoming guest stays</div>
+          </div>
+          <div class="summary-card">
+            <div id="bookedNightCount" class="summary-value">—</div>
+            <div class="summary-label">Booked guest nights ahead</div>
+          </div>
+          <div class="summary-card">
+            <div id="ownerStayCount" class="summary-value">—</div>
+            <div class="summary-label">Upcoming owner stays</div>
+          </div>
+          <div class="summary-card">
+            <div id="nextStayDate" class="summary-value" style="font-size:18px">—</div>
+            <div class="summary-label">Next guest arrival</div>
+          </div>
+        </div>
+      </div>
+
       <div class="two-col">
         <div class="card">
           <h2>Booked dates</h2>
           <p class="muted small">
-            These dates come from Airbnb, Booking.com or Lekkeslaap. They are read-only and do not include guest details.
+            These dates come directly from the live Beds24 reservation calendar, including connected booking platforms and BSTE direct bookings. They are read-only and do not include guest details.
           </p>
           <div id="bookingsList">
             <p class="muted">Loading booked dates...</p>
@@ -243,7 +307,7 @@
         <div class="card">
           <h2>Owner-use dates</h2>
           <p class="muted small">
-            These are dates blocked by the owner from this page.
+            These are dates blocked by the owner from this page. Future blocks are checked against the live Beds24 blackout calendar.
           </p>
           <div id="blocksList">
             <p class="muted">Loading owner blocks...</p>
@@ -270,6 +334,10 @@
     const bookingsList = document.getElementById('bookingsList');
     const diagnostics = document.getElementById('diagnostics');
     const formMessage = document.getElementById('formMessage');
+    const guestStayCount = document.getElementById('guestStayCount');
+    const bookedNightCount = document.getElementById('bookedNightCount');
+    const ownerStayCount = document.getElementById('ownerStayCount');
+    const nextStayDate = document.getElementById('nextStayDate');
 
     function showError(message) {
       errorText.textContent = message;
@@ -288,39 +356,105 @@
       });
     }
 
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function addDays(dateString, days) {
+      const d = new Date(dateString + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + Number(days || 0));
+      return d.toISOString().slice(0, 10);
+    }
+
+    function nightsBetween(start, end) {
+      if (!start || !end) return 0;
+      return Math.max(0, Math.round(
+        (new Date(end + 'T00:00:00Z') - new Date(start + 'T00:00:00Z')) / 86400000
+      ));
+    }
+
+    function renderSummary(data) {
+      const today = new Date().toISOString().slice(0, 10);
+      const bookings = (data.bookings || [])
+        .filter(b => String(b.end_date || '') >= today)
+        .sort((a,b) => String(a.start_date).localeCompare(String(b.start_date)));
+      const blocks = (data.blocks || [])
+        .filter(b => String(b.end_date || '') >= today)
+        .sort((a,b) => String(a.start_date).localeCompare(String(b.start_date)));
+
+      guestStayCount.textContent = String(bookings.length);
+      bookedNightCount.textContent = String(bookings.reduce(
+        (sum,b) => sum + nightsBetween(b.start_date, b.end_date), 0
+      ));
+      ownerStayCount.textContent = String(blocks.length);
+      nextStayDate.textContent = bookings.length ? formatDate(bookings[0].start_date) : 'None';
+    }
+
     function renderBookings(bookings) {
-      if (!bookings || !bookings.length) {
-        bookingsList.innerHTML = '<p class="muted">No booked dates are currently showing from the connected booking platforms.</p>';
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = (bookings || [])
+        .filter(booking => String(booking.end_date || '') >= today)
+        .sort((a,b) => String(a.start_date).localeCompare(String(b.start_date)));
+
+      if (!upcoming.length) {
+        bookingsList.innerHTML = '<p class="muted">No upcoming guest stays are currently showing in Beds24.</p>';
         return;
       }
 
-      bookingsList.innerHTML = bookings.map(booking => `
-        <div class="item">
-          <div>
-            <span class="pill booked">Booked</span>
-            <strong>${formatDate(booking.start_date)} to ${formatDate(booking.end_date)}</strong>
-            <div class="muted">${booking.source || 'External calendar'}</div>
+      bookingsList.innerHTML = upcoming.map(booking => {
+        const isRequest = String(booking.booking_status || '').toLowerCase() === 'request';
+        return `
+          <div class="item">
+            <div>
+              <span class="pill ${isRequest ? 'request' : 'booked'}">${isRequest ? 'Reserved' : 'Booked'}</span>
+              <strong>${formatDate(booking.start_date)} to ${formatDate(booking.end_date)}</strong>
+              <div class="muted">${escapeHtml(booking.source || 'Booked')}</div>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function renderOwnerBlocks(blocks) {
-      if (!blocks || !blocks.length) {
-        blocksList.innerHTML = '<p class="muted">No owner-use dates have been blocked yet.</p>';
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = (blocks || [])
+        .filter(block => String(block.end_date || '') >= today)
+        .sort((a,b) => String(a.start_date).localeCompare(String(b.start_date)));
+
+      if (!upcoming.length) {
+        blocksList.innerHTML = '<p class="muted">No upcoming owner-use dates have been blocked.</p>';
         return;
       }
 
-      blocksList.innerHTML = blocks.map(block => `
-        <div class="item">
-          <div>
-            <span class="pill owner">Owner use</span>
-            <strong>${formatDate(block.start_date)} to ${formatDate(block.end_date)}</strong>
-            <div class="muted">${block.note ? block.note : 'Owner block'}</div>
+      blocksList.innerHTML = upcoming.map(block => {
+        const syncBadge = block.sync_verified === true
+          ? '<span class="pill sync">Live ✓</span>'
+          : block.sync_verified === false
+            ? '<span class="pill attention">Sync attention</span>'
+            : '';
+
+        const prepText = block.prep_start_date && block.prep_end_date
+          ? `Protected in Beds24: ${formatDate(block.prep_start_date)} to ${formatDate(addDays(block.prep_end_date, -1))}`
+          : '';
+
+        return `
+          <div class="item">
+            <div>
+              <span class="pill owner">Owner use</span>
+              ${syncBadge}
+              <strong>${formatDate(block.start_date)} to ${formatDate(block.end_date)}</strong>
+              <div class="muted">${escapeHtml(block.note ? block.note : 'Owner block')}</div>
+              ${prepText ? '<div class="muted small">' + prepText + '</div>' : ''}
+            </div>
+            <button class="danger" data-delete-id="${escapeHtml(block.id)}">Delete</button>
           </div>
-          <button class="danger" data-delete-id="${block.id}">Delete</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       document.querySelectorAll('[data-delete-id]').forEach(button => {
         button.addEventListener('click', async () => {
@@ -357,15 +491,22 @@
       const sync = d.channel_sync || {};
       const live = sync.ok === true;
 
+      const ownerSync = d.owner_block_sync || {};
+      const ownerSyncText = ownerSync.checked
+        ? ' · Owner blocks verified: ' + (ownerSync.verified_count ?? 0) +
+          (ownerSync.attention_count ? ' · Attention: ' + ownerSync.attention_count : '')
+        : '';
+
       diagnostics.textContent =
         'Owner blocks: ' + (d.owner_blocks_count ?? 0) +
-        ' · Guest bookings: ' + (d.external_bookings_count ?? 0) +
+        ' · Guest stays: ' + (d.guest_bookings_count ?? 0) +
         ' · Channel sync: ' + (live ? 'Live ✓' : 'Attention needed') +
+        ownerSyncText +
         (sync.provider ? ' · ' + sync.provider : '') +
         (sync.room_id ? ' · Room ' + sync.room_id : '') +
         (!live && sync.fallback ? ' · Showing ' + sync.fallback + ' fallback data' : '');
         
-      diagnostics.className = live ? 'success' : 'muted';
+      diagnostics.className = (live && !(ownerSync.attention_count > 0)) ? 'success' : 'muted';
     }
 
     async function loadCalendar() {
@@ -383,10 +524,11 @@
           return;
         }
 
-        propertyName.textContent = data.owner_name + ' · ' + data.property_slug;
+        propertyName.textContent = data.owner_name + ' · ' + (data.property_name || data.property_slug);
         app.classList.remove('hidden');
         errorBox.classList.add('hidden');
 
+        renderSummary(data);
         renderBookings(data.bookings || []);
         renderOwnerBlocks(data.blocks || []);
         renderDiagnostics(data);
