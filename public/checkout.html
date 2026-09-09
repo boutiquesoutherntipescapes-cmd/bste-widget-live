@@ -94,12 +94,12 @@
         <div id="reviewPanel" class="hidden">
           <div class="step"><span class="num">2</span> Review your reservation</div>
           <div class="review" id="reviewText"></div>
-          <div class="status">
-            <strong>Secure payment preview:</strong> the final payment step is being connected. No payment will be taken on this preview page.
+          <div id="paymentNotice" class="status">
+            <strong>Secure payment:</strong> continue to PayFast to complete your reservation.
           </div>
           <div class="actions">
             <button id="editBtn" class="secondary">Edit details</button>
-            <button id="paymentBtn" disabled>Continue to secure payment</button>
+            <button id="paymentBtn">Continue to secure payment</button>
           </div>
         </div>
       </section>
@@ -140,6 +140,11 @@ const checkOut = qs.get('check_out') || '';
 const guestCount = Number(qs.get('guests') || 2);
 const meta = META[property] || { name:'Boutique Southern Tip Escape', image:'/img/legacy.jpg' };
 let quote = null;
+let checkoutId = sessionStorage.getItem('bste_checkout_id');
+if(!checkoutId){
+  checkoutId = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2));
+  sessionStorage.setItem('bste_checkout_id', checkoutId);
+}
 
 const $ = id => document.getElementById(id);
 $('propertyName').textContent = meta.name;
@@ -223,6 +228,57 @@ $('guestForm').addEventListener('submit', e => {
 $('editBtn').onclick = () => {
   $('reviewPanel').classList.add('hidden');
   $('guestForm').classList.remove('hidden');
+};
+
+$('paymentBtn').onclick = async () => {
+  const btn = $('paymentBtn');
+  const notice = $('paymentNotice');
+  const draft = JSON.parse(sessionStorage.getItem('bste_checkout_draft') || 'null');
+
+  if(!draft){
+    notice.innerHTML = '<span class="bad">Your booking details could not be found. Please edit the reservation and try again.</span>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Preparing secure payment…';
+  notice.textContent = 'Creating a temporary reservation hold and connecting securely to PayFast…';
+
+  try{
+    const r = await fetch('/api/payfast-start',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...draft, checkout_id:checkoutId})
+    });
+    const data = await r.json();
+    if(!r.ok || !data.ok) throw new Error(data.error || data.detail || 'Could not start payment');
+
+    if(data.mode === 'sandbox'){
+      notice.innerHTML = '<strong>PayFast test mode:</strong> opening the secure sandbox payment page. No real money will be charged.';
+    } else {
+      notice.innerHTML = '<strong>Secure payment:</strong> redirecting you to PayFast…';
+    }
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=data.action;
+    form.style.display='none';
+
+    Object.entries(data.fields || {}).forEach(([name,value])=>{
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name=name;
+      input.value=String(value ?? '');
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  }catch(err){
+    notice.innerHTML = '<span class="bad">' + String(err.message || err) + '</span>';
+    btn.disabled = false;
+    btn.textContent = 'Continue to secure payment';
+  }
 };
 
 initialise();
