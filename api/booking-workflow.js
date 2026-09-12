@@ -207,9 +207,9 @@ function buildTasks(booking) {
 }
 
 async function sendGoogleWorkflow(payload) {
-  const url = String(process.env.GOOGLE_WEBHOOK_URL || '').trim();
-  const secret = String(process.env.BSTE_WEBHOOK_SECRET || '').trim();
-  if (!url || !secret) throw new Error('Google workflow webhook is not configured');
+  const url = String(process.env.BSTE_BOOKING_GOOGLE_WEBHOOK_URL || '').trim();
+  const secret = String(process.env.BSTE_BOOKING_WEBHOOK_SECRET || '').trim();
+  if (!url || !secret) throw new Error('Booking workflow webhook is not configured');
 
   const response = await fetch(url, {
     method: 'POST',
