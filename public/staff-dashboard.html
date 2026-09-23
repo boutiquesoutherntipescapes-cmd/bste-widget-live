@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>BSTE Operations</title>
+<link rel="stylesheet" href="/staff-dashboard.css"><script src="/staff-dashboard.js" defer></script></head>
+<body><main><header><div><p class="eyebrow">BSTE · Operations staging</p><h1>Stays at a glance</h1><p id="identity">Checking staff access…</p></div>
+<div><a href="/staff-login.html">Staff sign-in</a> <button id="logout" type="button">Sign out</button></div></header>
+<noscript>JavaScript is required. No guest data is included in this page.</noscript>
+<section id="notice" role="status" aria-live="polite">Loading saved reservations…</section>
+<div id="dashboard" hidden>
+<section class="summary" id="properties" aria-label="Property booking counts"></section>
+<section class="sync"><div><h2>Source health</h2><p id="sync-state"></p><p id="sync-counts"></p>
+<p>Refresh reads Beds24 and saves to staging. It does not change inventory or send messages.</p></div><button id="refresh" type="button" disabled>Refresh from Beds24</button></section>
+<div class="toolbar"><h2>Current &amp; upcoming stays</h2><label>View <select id="group"><option value="all">All stays</option><option value="in_house">Currently in-house</option><option value="departing_today">Departing today</option><option value="upcoming">Upcoming</option></select></label></div>
+<p>Existing booking — original rules apply. Manual payment reviews are staff records, not a new payment or a calculation from Beds24’s deposit field.</p>
+<div class="table-wrap"><table><thead><tr><th>Guest / booking</th><th>Property</th><th>Stay</th><th>Guests</th><th>Channel</th><th>Beds24 raw status</th><th>BSTE operational status</th><th>Payment review</th><th>Attention</th><th>Staff review</th></tr></thead><tbody id="bookings"></tbody></table></div>
+<p id="empty" hidden>No saved stays in this view. Check source health before treating this as a complete picture.</p>
+<section class="future"><h2>Stay expenses &amp; owner reconciliation</h2><p>Data foundations are prepared. Expense entry, receipt uploads, approval and owner statements are not enabled in this release.</p></section>
+</div></main></body></html>

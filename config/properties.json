@@ -32,6 +32,7 @@
         "cleaning_fee_zar": 1000
       }
     ],
+    "beds24_property_id": 351452,
     "beds24_room_id": 724919,
     "prep_buffer_nights": 1
   },
@@ -68,11 +69,14 @@
         "cleaning_fee_zar": 1000
       }
     ],
+    "beds24_property_id": 352005,
     "beds24_room_id": 726060,
     "prep_buffer_nights": 1
   },
   {
     "property_slug": "the-pearl-beach-villa-agulhas",
+    "beds24_property_id": 352276,
+    "beds24_room_id": 726696,
     "display_name": "The Pearl Beach Villa Agulhas",
     "property_page_url": "https://www.boutiquesoutherntipescapes.com/the-pearl-beach-villa-agulhas",
     "thumbnail_url": "/img/the-pearl-beach-villa-agulhas.jpg",

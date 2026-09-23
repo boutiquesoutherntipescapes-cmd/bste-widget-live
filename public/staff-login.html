@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src data:; form-action 'self'; base-uri 'none'">
+  <title>BSTE staff sign-in</title>
+</head>
+<body>
+  <main>
+    <h1>BSTE staff access</h1>
+    <p>Use your individually provisioned staff account.</p>
+    <noscript>JavaScript is required for secure sign-in. No credentials can be submitted without it.</noscript>
+    <form id="login" method="post" action="/api/staff-session">
+      <fieldset id="login-fields" disabled>
+      <p><label>Email <input id="email" type="email" autocomplete="username" required maxlength="254"></label></p>
+      <p><label>Password <input id="password" type="password" autocomplete="current-password" required maxlength="1024"></label></p>
+      <button type="submit">Sign in</button>
+      </fieldset>
+    </form>
+    <section id="enrollment" hidden aria-label="Set up your authenticator">
+      <h2>Set up your authenticator</h2>
+      <p>Use an authenticator app on your own device. Keep the setup key private; do not email or share it.</p>
+      <button id="start-enrollment" type="button" disabled>Set up / restart authenticator</button>
+      <p>Restarting replaces only unfinished BSTE setup. Scan the new code if you restart.</p>
+      <div id="setup-details" hidden>
+        <img id="setup-qr" alt="Scan this QR code with your authenticator app" width="240" height="240">
+        <p>If you cannot scan, enter this setup key into your authenticator: <code id="setup-secret"></code></p>
+      </div>
+    </section>
+    <form id="mfa" method="post" action="/api/staff-session" hidden>
+      <fieldset id="mfa-fields" disabled>
+        <label>Authenticator <select id="factor"></select></label>
+        <label>Six-digit code <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+        <button type="submit">Verify</button>
+      </fieldset>
+    </form>
+    <details>
+      <summary>Lost your authenticator or need recovery?</summary>
+      <p>If you still have another enrolled authenticator, select it and enter its code.</p>
+      <p>Otherwise contact another BSTE administrator through a contact method you already know.
+      Recovery requires independent identity checks and an authorized Supabase project administrator.
+      If both Bond and Leah are locked out, use the designated Supabase project custodian.</p>
+      <p>Do not share passwords, QR codes or setup keys. Email access alone is not proof of identity.
+      There is no bypass code. After authorized recovery you must set up and verify a new authenticator
+      before accessing bookings. This page does not send a recovery request.</p>
+    </details>
+    <p><a id="dashboard-link" href="/staff-dashboard.html" hidden>Open operations dashboard</a></p>
+    <p id="status" role="status" aria-live="polite"></p>
+    <button id="logout" type="button" hidden>Sign out</button>
+  </main>
+  <script src="/staff-login.js" defer></script>
+</body>
+</html>
