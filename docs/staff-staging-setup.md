@@ -73,3 +73,9 @@ The recovery custodian, independent identity-check procedure and protected incid
 Local tests mock Supabase; no live enrollment or recovery was attempted. Test real enrollment/QR scanning, wrong-code retry, return login, five-minute setup expiry, AAL1 denial, AAL2 access and logout in the isolated project. Confirm provider MFA rate limits and the actual recovery administrative tools before staff trials. The previous successful SQL suite validates the existing database foundation; it does not prove the new browser/Auth flow. No bookings or communications are needed for these tests.
 
 References: [Supabase TOTP enrollment and challenge](https://supabase.com/docs/guides/auth/auth-mfa/totp), [Auth REST API including administrative factor removal](https://github.com/supabase/auth/blob/master/openapi.yaml), [session termination and session validation](https://supabase.com/docs/guides/auth/sessions).
+
+## Staging migration record — manually applied through SQL Editor
+
+Bond reports that `202609230001_stay_finances.sql` and `202609230002_september_backfill.sql` were successfully applied through the authenticated **BSTE Operations Staging SQL Editor**, not Supabase CLI. This project has NO `supabase_migrations.schema_migrations` table. Do not infer unapplied migrations from absent CLI history, do not blindly rerun these SQL files, and do not create a history table merely to resolve this difference. Inspect actual schema/functions when checking installation.
+
+Bond verified: 14 bookings; zero historical batches/results/opening positions; finance and backfill RLS tests passed; private receipt bucket verified; no persistent test data. These are user-reported staging results, not fresh external verification by the local harness implementation. No migration changes accompany this harness.

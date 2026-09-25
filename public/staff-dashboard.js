@@ -35,7 +35,7 @@ function render(){if(!data)return;
  node('td',`${b.adults??'?'} adults / ${b.children??'?'} children`),node('td',b.source_channel||'Not supplied'),node('td',b.source_status),operation,payment,node('td',b.attention.join(' · ')||'—','flags'),actions);return tr;}));
  el('empty').hidden=shown.length>0;
 }
-async function load(){const current=epoch;try{const result=await api();if(current!==epoch)return;data=result;el('identity').textContent=`${data.staff.display_name} · ${data.staff.role} · South African dates`;el('dashboard').hidden=false;
+async function load(){const current=epoch;try{const result=await api();if(current!==epoch)return;data=result;globalThis.initStayFinances?.(data.staff);el('identity').textContent=`${data.staff.display_name} · ${data.staff.role} · South African dates`;el('dashboard').hidden=false;
  warn(refreshFailed?'Latest refresh failed. Saved data may be stale; retry when the source is available.':data.diagnostics.warning||'Saved source data loaded. No guest communications are enabled.');render();
  }catch(error){el('dashboard').hidden=true;warn(`Dashboard unavailable: ${error.message}. Sign in again if your session expired.`);throw error;}}
 el('group').addEventListener('change',render);

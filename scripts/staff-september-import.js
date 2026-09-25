@@ -1,0 +1,17 @@
+const button=document.getElementById('import'),check=document.getElementById('confirmed'),status=document.getElementById('status');
+let ready=false,attempted=false;
+const messages={NO_SELECTION:'No selection exists. Run an authorized protected preview.',SELECTION_EXPIRED:'Selection expired after 25 minutes. A fresh preview is required.',SESSION_CHANGED:'Session identity changed. Run a fresh preview in this session.',PREVIEW_CONFLICT:'Candidate selection rejected: duplicate/conflict.',APPROVED_STAY_MISSING_OR_AMBIGUOUS:'Candidate selection rejected: approved stay missing or ambiguous.',CANDIDATE_STATUS_REJECTED:'Candidate selection rejected: guest classification/status.',CHANNEL_MISMATCH:'Candidate selection rejected: exact channel mismatch.',SOURCE_IDENTITY_MISMATCH:'Candidate selection rejected: source/property identity mismatch.',INVALID_BOOKING_ID:'Candidate selection rejected: invalid booking identity.',DUPLICATE_BOOKING_ID:'Candidate selection rejected: duplicate identity.',SELECTION_REJECTED:'Candidate selection could not be stored.',AUTHENTICATION_REQUIRED:'Session missing, expired or invalid. Sign in with MFA.',PERMISSION_DENIED:'MFA Administrator import permissions required.',AUTHENTICATION_UNAVAILABLE:'Authentication verification unavailable.',REQUEST_REJECTED:'Local request safeguards rejected the request.',HANDOFF_UNAVAILABLE:'Selection lookup/display unavailable.',IMPORT_UNCONFIRMED:'Import outcome uncertain. Inspect staging before retrying.'};
+function diagnostic(error){return Object.hasOwn(messages,error?.code)?`${error.code}: ${messages[error.code]}`:'HANDOFF_UNAVAILABLE: Request or response failed; selection state is unknown.';}
+
+async function request(body){const r=await fetch('/local/september-import',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok){const error=new Error('Request rejected');error.code=data.code;throw error;}return data;}
+check.addEventListener('change',()=>{button.disabled=!ready||!check.checked||attempted;});
+button.addEventListener('click',async()=>{
+ if(!ready||!check.checked||attempted)return;attempted=true;button.disabled=true;check.disabled=true;status.textContent='Importing approved stays once…';
+ try{const result=await request({action:'import',confirmed:true});document.getElementById('result').textContent=JSON.stringify(result,null,2);status.textContent=`Completed: ${result.imported_count} bookings imported; ${result.newly_created_opening_count} opening rows created; ${result.preserved_opening_count} opening rows preserved; ${result.settlement_count} settlement rows created. Owner and cleaner remain outstanding. Funds were not recorded.`;}
+ catch(error){status.textContent=diagnostic(error)+' Stop and inspect staging before retrying. No automatic retry.';}
+});
+request({action:'show'}).then(data=>{
+ if(data.candidates.length!==3)throw Error('Invalid selection');
+ for(const r of data.candidates){const p=document.createElement('p');p.textContent=`${r.booking_id} · ${r.property} · ${r.arrival} to ${r.departure} · ${r.nights} nights · ${r.channel} · ${r.raw_status}`;document.getElementById('candidates').append(p);}
+ ready=true;check.disabled=false;status.textContent='Review these three server-selected stays, then confirm. Nothing has been imported.';
+}).catch(error=>{status.textContent=diagnostic(error)+' Nothing imported. No automatic retry.';});
