@@ -21,7 +21,7 @@ function openingPaidInput(party,value){
   let fingerprint;
   if(input.request_key){const {request_key,...content}=input;fingerprint=action+JSON.stringify(content);
    if(!pendingRequests.has(fingerprint))pendingRequests.set(fingerprint,request_key);input={...input,request_key:pendingRequests.get(fingerprint)};}
-  const r=await fetch('/api/staff-finances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,input})});const d=await r.json();if(!r.ok)throw new Error(d.error);return d;}
+  const r=await fetch('/api/staff-finances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,input})});let d;try{d=await r.json();}catch{throw new Error('Server response could not be read. Save outcome is unconfirmed; inspect the booking before retrying.');}if(!r.ok)throw new Error(d.error||'Save rejected by server');return d;}
  function button(label,fn){const b=text('button',label);b.type='button';b.addEventListener('click',()=>run(fn));return b;}
  async function run(fn){if(busy)return;busy=true;try{await fn();}catch(e){say(e.message);}finally{busy=false;}}
  function form(title,fields,submit){const box=document.createElement('details');box.append(text('summary',title));const f=document.createElement('form'),inputs={};
@@ -29,13 +29,23 @@ function openingPaidInput(party,value){
    if(options)for(const o of options){const opt=text('option',o.label??o);opt.value=o.value??o;i.append(opt);}
    else {i.type=type||'text';if(type==='number'){i.min='0';i.step='0.01';}i.maxLength=2000;}
    i.value=value??'';i.required=!label.includes('(optional)');inputs[key]=i;l.append(i);f.append(l,document.createElement('br'));}
-  const b=text('button','Save');b.type='submit';f.append(b);f.addEventListener('submit',e=>{e.preventDefault();run(async()=>{b.disabled=true;try{await submit(Object.fromEntries(Object.entries(inputs).map(([k,v])=>[k,v.value])));}finally{b.disabled=false;}});});box.append(f);return box;
+  const feedback=text('p','');feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');
+  const b=text('button','Save');b.type='submit';f.append(b,feedback);
+  f.addEventListener('invalid',e=>{feedback.textContent='Please check '+(e.target.validationMessage||'the highlighted required field')+'.';},true);
+  let saving=false;
+  f.addEventListener('submit',async e=>{e.preventDefault();if(saving)return;if(busy){feedback.textContent='Another action is running. Please wait before saving.';return;}
+   saving=true;busy=true;b.disabled=true;b.textContent='Saving...';feedback.textContent='Saving...';
+   try{await submit(Object.fromEntries(Object.entries(inputs).map(([k,v])=>[k,v.value])));feedback.textContent='Saved successfully';}
+   catch(error){feedback.textContent=error.message||'Save failed. Your entered values have been kept.';say(feedback.textContent);}
+   finally{saving=false;busy=false;b.disabled=false;b.textContent='Save';}
+  });box.append(f);return box;
+
  }
  const cents=v=>{if(!/^\d+(\.\d{1,2})?$/.test(String(v)))throw new Error('Use a positive rand amount with at most two decimals');return Math.round(Number(v)*100);};
  const field=(key,label,value,type='text',options)=>[key,label,type,value,options];
  const req=()=>crypto.randomUUID();
  async function load(){const d=await call('list',{month:$('finance-month').value});const area=$('finance-stays');area.replaceChildren();
-  for(const b of d.bookings)area.append(button(`${b.guest_name||'Guest'} · #${b.beds24_booking_id} · ${b.property_slug} · checkout ${b.departure}`,()=>detail(b.id)));
+  for(const b of d.bookings)area.append(button(`${b.guest_name||'Guest'} · ${b.source_kind==='manual_direct'?b.manual_reference:'#'+b.beds24_booking_id} · ${b.property_slug} · checkout ${b.departure}`,()=>detail(b.id)));
   if(!d.bookings.length)area.append(text('p','No stored stays in this checkout month. Historical stays not previously imported are not fetched automatically.'));
   const rates=$('finance-rates');rates.replaceChildren();const current=d.rates.filter(r=>!d.rates.some(n=>n.supersedes_id===r.id));
   rates.append(text('h3','Configured owner rates (end date exclusive)'));
@@ -44,13 +54,13 @@ function openingPaidInput(party,value){
  }
  function rateForm(r={}){return form(r.id?'Correct this rate period':'Add owner rate period',[
   field('property_slug','Property',r.property_slug||'legacy-suiderstrand','text',['legacy-suiderstrand','kalay-ridge-villa-struisbaai','the-pearl-beach-villa-agulhas']),
-  field('season','Season',r.season||'low','text',['low','high']),field('starts_on','First night',r.starts_on,'date'),field('ends_on','End date (excluded)',r.ends_on,'date'),
+  field('season','Season',r.season||'low','text',['low','shoulder','high']),field('starts_on','First night',r.starts_on,'date'),field('ends_on','End date (excluded)',r.ends_on,'date'),
   field('rate','Owner nightly rate (R)',r.rate_cents?r.rate_cents/100:'' ,'number'),field('reason','Reason / agreement reference','')],async v=>{
    await call('rate',{...v,rate_cents:cents(v.rate),previous_id:r.id||null,request_key:req()});await load();
   });}
- async function detail(id){selected=id;const d=await call('detail',{booking_id:id}),area=$('finance-detail');area.replaceChildren();
-  area.append(text('h3',`Draft finances · #${d.booking.beds24_booking_id} · ${d.booking.property_slug}`));
-  area.append(text('p',`Raw Beds24: ${d.booking.source_status}. Source booking value: ${d.source?.source_price??'Unknown'} ${d.source?.source_currency??'currency unconfirmed'}. This is not proof of funds received.`));
+ async function detail(id,verified=null){selected=id;const d=verified||await call('detail',{booking_id:id}),area=$('finance-detail');area.replaceChildren();
+  area.append(text('h3',`Draft finances · ${d.booking.source_kind==='manual_direct'?d.booking.manual_reference:'#'+d.booking.beds24_booking_id} · ${d.booking.property_slug}`));
+  area.append(text('p',d.booking.source_kind==='manual_direct'?'Historical direct booking — manually recorded; no Beds24 reservation or source payment facts.':`Raw Beds24: ${d.booking.source_status}. Source booking value: ${d.source?.source_price??'Unknown'} ${d.source?.source_currency??'currency unconfirmed'}. This is not proof of funds received.`));
   area.append(text('p',`Eligibility: ${d.draft.eligibility} · Funds: ${d.draft.funds_status||'not reviewed'} · Checkout month: ${d.draft.checkout_month||d.booking.departure.slice(0,7)}`));
   area.append(text('p',`Opening-period: ${d.draft.opening_period?'yes':'not recorded'} · Owner: ${d.draft.owner_settlement_state} · Cleaner: ${d.draft.cleaner_settlement_state} · Monthly reconciliation: ${d.draft.monthly_reconciliation_eligible?'included':'not eligible'}`));
   if(d.draft.missing?.length)area.append(text('p',d.draft.missing.join(' · ')));
@@ -83,17 +93,31 @@ function openingPaidInput(party,value){
   for(const v of d.reviews)history.append(text('p',`Finance revision ${v.id}: ${v.status} · accommodation ${money(v.accommodation_cents)} · funds ${money(v.funds_received_cents)} · ${v.created_at}`));
   area.append(history);say('Draft stay finances loaded. No owner or cleaner payment will be initiated.');
  }
- function reviewForm(d){const r=d.reviews[0]||{};return form('Enter / revise financial review',[
+ function ownerNightEditor(nights){
+  const section=document.createElement('section');section.append(text('h4','Owner payout for this stay'),text('p','Standard rate = property default. Agreed rate = what the owner earns for that occupied night. This records entitlement, not payment.'));
+  const table=document.createElement('table'),head=document.createElement('tr');for(const label of ['Date','Season','Standard rate','Agreed rate (R)'])head.append(text('th',label));table.append(head);
+  const inputs=nights.map(n=>{const row=document.createElement('tr'),cell=document.createElement('td'),input=document.createElement('input');input.type='number';input.min='0';input.max='1000000';input.step='0.01';input.value=n.rate_cents==null?'':n.rate_cents/100;input.setAttribute('aria-label','Agreed owner rate for '+n.night);cell.append(input);row.append(text('td',n.night),text('td',n.season||'Not configured'),text('td',money(n.default_rate_cents)),cell);table.append(row);return input;});
+  section.append(table);const all=document.createElement('input');all.type='number';all.min='0';all.step='0.01';const label=text('label','Apply owner rate R ');label.append(all);section.append(label,button('Apply to all nights',()=>{const amount=cents(all.value);if(amount>100000000)throw Error('Rate exceeds limit');inputs.forEach(i=>{i.value=amount/100;});}));
+  const reason=document.createElement('input'),reasonLabel=text('label','Reason for rate adjustment: ');reason.maxLength=2000;reasonLabel.append(reason);section.append(reasonLabel);
+  if(!nights.length||nights.some(n=>!n.rate_id))section.append(text('p','Configure standard owner rates for every occupied night before saving.'));
+  return {section,values(){if(!nights.length||nights.some(n=>!n.rate_id))throw Error('Configure standard owner rates for every occupied night');const owner_nights=nights.map((n,i)=>{const rate=cents(inputs[i].value);if(rate>100000000)throw Error('Rate exceeds limit');if(rate!==n.default_rate_cents&&!reason.value.trim()&&!(n.is_override&&rate===n.rate_cents&&n.adjustment_reason))throw Error('Reason required for agreed rate adjustment');return {night:n.night,rate_id:n.rate_id,default_rate_cents:n.default_rate_cents,rate_cents:rate};});return {owner_nights,owner_rate_reason:reason.value.trim()};}};
+ }
+ function reviewForm(d){const r=d.reviews[0]||{};const nightly=ownerNightEditor(d.owner_nights||[]);const box=form('Enter / revise financial review',[
   field('accommodation','Accommodation revenue only (R)',r.accommodation_cents==null?'':r.accommodation_cents/100,'number'),
   field('cleaning','Guest cleaning charge (R)',(r.cleaning_charge_cents??100000)/100,'number'),field('fees','Channel/platform fees (R)',r.channel_fees_cents==null?'':r.channel_fees_cents/100,'number'),
   field('cleaner','Cleaner cost (R)',(r.cleaner_cost_cents??80000)/100,'number'),field('cleaner_supplier','Cleaner / supplier',r.cleaner_supplier),
   field('received','Cumulative actual BSTE funds received for this stay (R)',(r.funds_received_cents??0)/100,'number'),field('funds_as_of','Funds evidence date',new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Johannesburg'}),'date'),
   field('expenses_complete','All stay expenses captured and reconciliation complete',r.expenses_complete?'yes':'no','text',['no','yes']),
   field('funds_evidence','Funds evidence (optional only when zero)',r.funds_evidence),field('status','Financial review', 'draft','text',staff.permissions.includes('finance.review')?['draft','reviewed']:['draft']),field('reason','Review / correction reason','')],async v=>{
-   await call('review',{booking_id:d.booking.id,previous_id:r.id||null,request_key:req(),accommodation_cents:cents(v.accommodation),cleaning_charge_cents:cents(v.cleaning),
+   const saved=await call('review',{booking_id:d.booking.id,previous_id:r.id||null,request_key:req(),accommodation_cents:cents(v.accommodation),cleaning_charge_cents:cents(v.cleaning),
     channel_fees_cents:cents(v.fees),cleaner_cost_cents:cents(v.cleaner),cleaner_supplier:v.cleaner_supplier,funds_received_cents:cents(v.received),funds_as_of:v.funds_as_of,
-    expenses_complete:v.expenses_complete==='yes',funds_evidence:v.funds_evidence,reason:v.reason,status:v.status});await detail(d.booking.id);
-  });}
+    expenses_complete:v.expenses_complete==='yes',funds_evidence:v.funds_evidence,reason:v.reason,status:v.status,...nightly.values()});
+   if(saved.saved!==true||typeof saved.id!=='string')throw Error('Save outcome unconfirmed. Inspect the booking before retrying.');
+   let verified;try{verified=await call('detail',{booking_id:d.booking.id});}catch{throw Error('Save may have succeeded, but verification failed. Your values are retained. Inspect the booking before retrying.');}
+   if(!verified.reviews?.some(review=>review.id===saved.id&&review.booking_id===d.booking.id))throw Error('Saved review was not found during verification. Your values are retained. Inspect the booking before retrying.');
+   await detail(d.booking.id,verified);
+   const confirmation=text('p','Saved successfully — financial review verified.');confirmation.setAttribute('role','status');$('finance-detail').append(confirmation);
+  });box.insertBefore(nightly.section,box.children[1]);return box;}
  function expenseForm(booking,e={}){return form(e.id?'Correct / approve / void expense (keeps original)':'Add expense',[
   field('incurred_on','Expense date',e.incurred_on,'date'),field('category','Category',e.category||'stocking','text',['stocking','laundry','maintenance','consumables','welcome_items','repairs','contractor','miscellaneous']),
   field('supplier','Supplier',e.supplier),field('supplier_reference','Reference (optional)',e.supplier_reference),field('description','Description',e.description),

@@ -24,7 +24,7 @@ function render(){if(!data)return;
  el('sync-counts').textContent=`Latest successful import: ${d.last_success?.imported_count??0} records. `+data.properties.map(p=>`${p.name}: ${d.last_success?.property_counts?.[p.slug]??0}`).join(' · ');
  el('refresh').disabled=busy||!data.staff.permissions.includes('sync.run');
  const shown=data.bookings.filter(b=>el('group').value==='all'||b.group===el('group').value);
- el('bookings').replaceChildren(...shown.map(b=>{const tr=node('tr');const guest=node('td',b.guest_name||'Name not supplied');guest.append(node('small',`Beds24 #${b.beds24_booking_id}`));
+ el('bookings').replaceChildren(...shown.map(b=>{const tr=node('tr');const guest=node('td',b.guest_name||'Name not supplied');guest.append(node('small',b.source_kind==='manual_direct'?`Historical direct · ${b.manual_reference}`:`Beds24 #${b.beds24_booking_id}`));
  const stay=node('td',`${b.arrival} → ${b.departure}`);stay.append(node('small',b.group.replaceAll('_',' ')));
  const operation=node('td',b.operational_status.replaceAll('_',' '));operation.append(node('small',b.operational_is_manual?'Staff reviewed':'From source; not a staff override'));
  const payment=node('td',!b.payment_visible?'Finance access required':b.payment_status?.replaceAll('_',' ')||'Not reviewed');
@@ -35,7 +35,7 @@ function render(){if(!data)return;
  node('td',`${b.adults??'?'} adults / ${b.children??'?'} children`),node('td',b.source_channel||'Not supplied'),node('td',b.source_status),operation,payment,node('td',b.attention.join(' · ')||'—','flags'),actions);return tr;}));
  el('empty').hidden=shown.length>0;
 }
-async function load(){const current=epoch;try{const result=await api();if(current!==epoch)return;data=result;globalThis.initStayFinances?.(data.staff);el('identity').textContent=`${data.staff.display_name} · ${data.staff.role} · South African dates`;el('dashboard').hidden=false;
+async function load(){const current=epoch;try{const result=await api();if(current!==epoch)return;data=result;globalThis.currentOperationsStaff=[data.staff,data.properties];globalThis.loadStayReadiness?.(data.staff,data.properties);globalThis.initStayFinances?.(data.staff);el('identity').textContent=`${data.staff.display_name} · ${data.staff.role} · South African dates`;el('dashboard').hidden=false;
  warn(refreshFailed?'Latest refresh failed. Saved data may be stale; retry when the source is available.':data.diagnostics.warning||'Saved source data loaded. No guest communications are enabled.');render();
  }catch(error){el('dashboard').hidden=true;warn(`Dashboard unavailable: ${error.message}. Sign in again if your session expired.`);throw error;}}
 el('group').addEventListener('change',render);

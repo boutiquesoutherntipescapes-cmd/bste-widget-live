@@ -3,13 +3,16 @@ import https from 'node:https';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import handler from '../api/staff-session.js';
+import directCheckoutHandler from '../api/direct-checkout.js';
 import operationsHandler from '../api/staff-operations.js';
-import financeHandler from '../api/staff-finances.js';
+import readinessHandler from '../api/staff-readiness.js';
+import financeHandler from './local-finance-diagnostics.mjs';
 import { requireStaff } from '../lib/staff-auth.js';
 import { operationsConfig } from '../lib/operations-store.js';
 import previewHandler, { assertLocalPreview, authorizePreview } from './local-september-preview.mjs';
 
 import repairHandler, { authorizeRepair } from './local-september-repair.mjs';
+import historicalDirectHandler, { authorizeHistoricalDirect } from './local-historical-direct.mjs';
 import importHandler, { authorizeImport } from './local-september-import.mjs';
 
 export async function staffLocalHandler(req, res) {
@@ -20,20 +23,20 @@ export async function staffLocalHandler(req, res) {
   res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
   const configured = new URL(process.env.BSTE_STAFF_ORIGIN);
   if (req.headers.host !== configured.host) { res.writeHead(403); res.end('Host not allowed'); return; }
-  if (['/local/september-preview','/staff-september-preview.html','/staff-september-preview.js','/local/september-import','/staff-september-import.html','/staff-september-import.js','/local/september-repair','/staff-september-repair.html','/staff-september-repair.js'].includes(req.url)) {
+  if (['/local/september-preview','/staff-september-preview.html','/staff-september-preview.js','/local/september-import','/staff-september-import.html','/staff-september-import.js','/local/september-repair','/staff-september-repair.html','/staff-september-repair.js','/local/historical-direct','/staff-historical-direct.html','/staff-historical-direct.js'].includes(req.url)) {
     try { assertLocalPreview(req); } catch { res.writeHead(403); res.end('Local staging only'); return; }
-    if (!['/local/september-preview','/local/september-import','/local/september-repair'].includes(req.url)) {
+    if (!['/local/september-preview','/local/september-import','/local/september-repair','/local/historical-direct'].includes(req.url)) {
       if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
-      try { await (req.url.startsWith('/staff-september-repair.') ? authorizeRepair : req.url.startsWith('/staff-september-import.') ? authorizeImport : authorizePreview)(req); } catch { res.writeHead(403); res.end('Sign in as an MFA administrator at /staff-login.html'); return; }
+      try { await (req.url.startsWith('/staff-historical-direct.') ? authorizeHistoricalDirect : req.url.startsWith('/staff-september-repair.') ? authorizeRepair : req.url.startsWith('/staff-september-import.') ? authorizeImport : authorizePreview)(req); } catch { res.writeHead(403); res.end('Sign in as an MFA administrator at /staff-login.html'); return; }
       const asset = req.url.slice(1);
       res.setHeader('Content-Type', asset.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8');
       res.end(fs.readFileSync(new URL(asset, import.meta.url))); return;
     }
   }
   // Exact allowlist deliberately excludes all booking/owner/automation endpoints.
-  if (['/api/staff-session','/api/staff-operations','/api/staff-finances','/local/september-preview','/local/september-import','/local/september-repair'].includes(req.url)) {
+  if (['/api/staff-readiness','/api/direct-checkout','/api/staff-session','/api/staff-operations','/api/staff-finances','/local/september-preview','/local/september-import','/local/september-repair','/local/historical-direct'].includes(req.url)) {
     let size = 0; const chunks = [];
-    const limit = req.url === '/api/staff-finances' ? 2900000 : 8192;
+    const limit = req.url === '/api/staff-finances' ? 2900000 : req.url === '/api/direct-checkout' ? 147456 : 8192;
     req.on('data', chunk => {
       size += chunk.length;
       if (size <= limit) chunks.push(chunk);
@@ -44,7 +47,7 @@ export async function staffLocalHandler(req, res) {
       catch { res.writeHead(400); res.end('Invalid JSON'); return; }
       res.status = code => { res.statusCode = code; return res; };
       res.json = body => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(body)); };
-      try { await (req.url === '/local/september-repair' ? repairHandler : req.url === '/local/september-import' ? importHandler : req.url === '/local/september-preview' ? previewHandler : req.url === '/api/staff-session' ? handler : req.url === '/api/staff-finances' ? financeHandler : operationsHandler)(req, res); }
+      try { await (req.url === '/api/staff-readiness' ? readinessHandler : req.url === '/api/direct-checkout' ? directCheckoutHandler : req.url === '/local/historical-direct' ? historicalDirectHandler : req.url === '/local/september-repair' ? repairHandler : req.url === '/local/september-import' ? importHandler : req.url === '/local/september-preview' ? previewHandler : req.url === '/api/staff-session' ? handler : req.url === '/api/staff-finances' ? financeHandler : operationsHandler)(req, res); }
       catch { if (!res.headersSent) res.writeHead(500); res.end(); }
     });
     return;
@@ -54,6 +57,10 @@ export async function staffLocalHandler(req, res) {
     catch { res.writeHead(303, {Location:'/staff-login.html'}); res.end(); return; }
   }
   const pages = {
+    '/direct-checkout.html': ['direct-checkout.html','text/html; charset=utf-8'],
+    '/direct-checkout.js': ['direct-checkout.js','text/javascript; charset=utf-8'],
+    '/staff-readiness.js': ['staff-readiness.js','text/javascript; charset=utf-8'],
+    '/stay-readiness-model.js': ['stay-readiness-model.js','text/javascript; charset=utf-8'],
     '/staff-finances.js': ['staff-finances.js','text/javascript; charset=utf-8'],
     '/staff-dashboard.html': ['staff-dashboard.html','text/html; charset=utf-8'],
     '/staff-dashboard.js': ['staff-dashboard.js','text/javascript; charset=utf-8'],

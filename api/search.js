@@ -1,3 +1,4 @@
+import {legacyPrice} from '../lib/direct-pricing.js';
 // /api/search.js — returns all available properties for given dates, with pricing (+ thumbnails)
 // Also respects owner blocks from Supabase.
 import fs from 'fs';
@@ -192,63 +193,8 @@ async function loadFeedsForProperty(prop) {
 // ---------- Pricing ----------
 // Easter weekend pricing is handled by utils.seasonForDate().
 // It overrides normal monthly pricing and uses Shoulder Season.
-function priceAndMinStay(prop, check_in, check_out, currency = 'ZAR') {
-  const nights = utils.stayNights(check_in, check_out);
+const priceAndMinStay = legacyPrice;
 
-  if (nights <= 0) {
-    return {
-      ok: false,
-      error: 'Invalid date range'
-    };
-  }
-
-  const seasons = (prop.seasons || []).map(s => ({
-    name: s.season_name,
-    months: utils.parseMonthsSpec(s.months || ''),
-    rate: Number(s.nightly_rate_zar || 0),
-    minStay: Number(s.min_stay_nights || 1),
-    cleaning: Number(s.cleaning_fee_zar || 0)
-  }));
-
-  const dates = utils.dateRangeList(check_in, nights);
-
-  let total = 0;
-  let maxMinStay = 1;
-
-  for (const d of dates) {
-    const s = utils.seasonForDate(d, seasons);
-
-    if (!s) {
-      return {
-        ok: false,
-        error: `No season rule covers ${utils.isoDate(d)}`
-      };
-    }
-
-    total += s.rate;
-
-    if (s.minStay > maxMinStay) {
-      maxMinStay = s.minStay;
-    }
-  }
-
-  const cleaningFees = seasons
-    .map(s => s.cleaning)
-    .filter(c => c > 0);
-
-  const cleaning = cleaningFees.length ? Math.max(...cleaningFees) : 0;
-
-  return {
-    ok: true,
-    currency,
-    nights,
-    minStayRequired: maxMinStay,
-    minStayOk: nights >= maxMinStay,
-    total: total + cleaning
-  };
-}
-
-// ---------- Handler ----------
 export default async function handler(req, res) {
   try {
     cors(res);

@@ -1,0 +1,32 @@
+{
+  "legacy-suiderstrand": {
+    "name": "Legacy Beach Villa",
+    "checkout_enabled": true,
+    "max_total_guests": 8,
+    "max_adults": 8
+  },
+  "kalay-ridge-villa-struisbaai": {
+    "name": "Kalaya Ridge Villa",
+    "checkout_enabled": true,
+    "max_total_guests": 10,
+    "max_adults": 6,
+    "max_children": 4
+  },
+  "the-pearl-beach-villa-agulhas": {
+    "name": "The Pearl Beach Villa",
+    "checkout_enabled": true,
+    "max_total_guests": 10,
+    "adult_only_max": 8,
+    "family_max_adults": 6,
+    "max_children": 4
+  },
+  "ctonic-ocean-view-villa": {
+    "name": "\"C\"tonic Ocean View Villa",
+    "address": "93 Malvern Drive, Struisbaai",
+    "checkout_enabled": false,
+    "max_total_guests": 10,
+    "adult_only_max": 10,
+    "family_max_adults": 6,
+    "max_children": 4
+  }
+}

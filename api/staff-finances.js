@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { StaffAuthError, requireStaff, assertStaffOrigin } from '../lib/staff-auth.js';
 import { operationsConfig, operationsRequest } from '../lib/operations-store.js';
 import { draftStay, validateReceipt } from '../lib/stay-finances.js';
+const reviewErrors=['Stale financial revision; reload','Configure owner rates for every stay night','Supply every occupied night exactly once','Standard rates changed or night invalid; reload before saving','Reason required for agreed rate adjustment','Agreed rate must be non-negative integer cents','Agreed nightly rate outside allowed range','Funds evidence date cannot be in future','Request key already used with different content or actor','Financial MFA access required','Review authority required'];
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function storage(path,token,{method='GET',bytes,type}={}) {
  const cfg=operationsConfig();
@@ -35,10 +36,10 @@ export function createFinanceHandler({authorize=requireStaff,request=operationsR
    if(action==='detail') {
     if(!uuid(input.booking_id))throw new StaffAuthError(400,'Booking required');
     const q=`booking_id=eq.${input.booking_id}`;
-    const [bookings,reviews,expenses,openings,source,history]=await Promise.all([
+    const [bookings,reviews,expenses,openings,source,history,owner_nights]=await Promise.all([
      request(`ops_bookings?id=eq.${input.booking_id}`,token),request(`ops_stay_financial_reviews?${q}&order=created_at.desc,id.desc&limit=201`,token),
      request(`ops_stay_expenses?${q}&order=created_at.desc,id.desc&limit=201`,token),request(`ops_stay_opening_positions?${q}&order=created_at.desc,id.desc&limit=201`,token),
-     request(`ops_booking_financial_snapshots?${q}`,token),request('rpc/ops_finance_history',token,{method:'POST',body:{target_booking:input.booking_id}})]);
+     request(`ops_booking_financial_snapshots?${q}`,token),request('rpc/ops_finance_history',token,{method:'POST',body:{target_booking:input.booking_id}}),request('rpc/ops_owner_nights',token,{method:'POST',body:{target_booking:input.booking_id}})]);
     if([reviews,expenses,openings].some(rows=>rows.length>200))throw new StaffAuthError(409,'Stay history exceeds this release capacity; no partial totals will be shown');
     if(!bookings[0])throw new StaffAuthError(404,'Booking not found');
     const attachments=expenses.length?await request(`ops_expense_attachments?expense_id=in.(${expenses.map(e=>e.id).join(',')})&limit=201`,token):[];
@@ -47,7 +48,7 @@ export function createFinanceHandler({authorize=requireStaff,request=operationsR
     if(reviews[0]&&['source_price','source_currency','source_invoice_items'].some(k=>JSON.stringify(reviews[0].source_basis.financial?.[k])!==JSON.stringify(source[0]?.[k]))) {
       draft.missing.push('Imported financial source changed since review');if(draft.eligibility!=='historical_settled')draft.eligibility='needs_review';
     }
-    return res.status(200).json({booking:bookings[0],reviews,expenses,openings,source:source[0]||null,attachments,history,draft});
+    return res.status(200).json({booking:bookings[0],reviews,expenses,openings,source:source[0]||null,attachments,history,draft,owner_nights});
    }
    if(action==='upload') {
     if(!uuid(input.expense_id)||!uuid(input.request_key)||typeof input.base64!=='string'||input.base64.length>2796208)throw new StaffAuthError(400,'Expense, request key and receipt required');
@@ -72,7 +73,7 @@ export function createFinanceHandler({authorize=requireStaff,request=operationsR
     if(createHash('sha256').update(bytes).digest('hex')!==a.sha256)throw new StaffAuthError(409,'Receipt integrity check failed');
     return res.status(200).json({base64:bytes.toString('base64'),name:a.original_name,media_type:a.media_type});
    }
-   const id=await request('rpc/ops_finance_write',token,{method:'POST',body:{action_name:action,input}});
+   const id=await request('rpc/ops_finance_write',token,{method:'POST',body:{action_name:action,input},safeErrors:action==='review'?reviewErrors:[]});
    return res.status(200).json({saved:true,id});
   }catch(e){return res.status(e instanceof StaffAuthError?e.status:500).json({error:e instanceof StaffAuthError?e.message:'Finance request failed; reload before retrying'});}
  };

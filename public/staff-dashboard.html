@@ -1,12 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>BSTE Operations</title>
-<link rel="stylesheet" href="/staff-dashboard.css"><script src="/staff-finances.js" defer></script><script src="/staff-dashboard.js" defer></script></head>
+<link rel="stylesheet" href="/staff-dashboard.css"><script src="/staff-finances.js" defer></script><script src="/staff-dashboard.js" defer></script><script type="module" src="/staff-readiness.js"></script></head>
 <body><main><header><div><p class="eyebrow">BSTE · Operations staging</p><h1>Stays at a glance</h1><p id="identity">Checking staff access…</p></div>
 <div><a href="/staff-login.html">Staff sign-in</a> <button id="logout" type="button">Sign out</button></div></header>
 <noscript>JavaScript is required. No guest data is included in this page.</noscript>
 <section id="notice" role="status" aria-live="polite">Loading saved reservations…</section>
 <div id="dashboard" hidden>
+<section id="readiness" hidden><h2>Daily readiness</h2><p id="readiness-notice" role="status"></p><div id="readiness-counts" class="summary"></div><label>Operations view <select id="readiness-window"><option value="today">Today</option><option value="tomorrow">Tomorrow</option><option value="week">Next 7 days</option></select></label> <button id="readiness-reload" type="button">Reload saved readiness</button><div id="readiness-stays"></div></section>
 <section class="summary" id="properties" aria-label="Property booking counts"></section>
 <section class="sync"><div><h2>Source health</h2><p id="sync-state"></p><p id="sync-counts"></p>
 <p>Refresh reads Beds24 and saves to staging. It does not change inventory or send messages.</p></div><button id="refresh" type="button" disabled>Refresh from Beds24</button></section>

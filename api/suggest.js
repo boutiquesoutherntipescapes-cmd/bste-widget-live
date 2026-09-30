@@ -1,3 +1,4 @@
+import {legacyPrice} from '../lib/direct-pricing.js';
 import fs from 'fs';
 import * as utils from './utils.js';
 
@@ -71,35 +72,7 @@ async function loadFeedsForProperty(prop) {
 
 function monthFromDate(d) { return (new Date(d)).getMonth() + 1; }
 
-function priceAndMinStay(prop, check_in, check_out, currency='ZAR') {
-  const stayNights = utils.stayNights;
-  const parseMonthsSpec = utils.parseMonthsSpec;
-  const dateRangeList = utils.dateRangeList;
-  const isoDate = utils.isoDate;
-
-  const nights = stayNights(check_in, check_out);
-  if (nights <= 0) return { ok:false, error:'Invalid date range' };
-
-  const seasons = (prop.seasons || []).map(s => ({
-    name: s.season_name,
-    months: parseMonthsSpec(s.months || ''),
-    rate: Number(s.nightly_rate_zar || 0),
-    minStay: Number(s.min_stay_nights || 1),
-    cleaning: Number(s.cleaning_fee_zar || 0),
-  }));
-
-  const dates = dateRangeList(check_in, nights);
-  let total = 0, maxMinStay = 1;
-  for (const d of dates) {
-    const m = monthFromDate(d);
-    const s = seasons.find(S => S.months.includes(m));
-    if (!s) return { ok:false, error:`No season rule covers ${isoDate(d)} (month ${m})` };
-    total += s.rate; if (s.minStay > maxMinStay) maxMinStay = s.minStay;
-  }
-  const cleaningFees = seasons.map(s => s.cleaning).filter(c => c>0);
-  const cleaning = cleaningFees.length ? Math.max(...cleaningFees) : 0;
-  return { ok:true, currency, nights, minStayRequired:maxMinStay, minStayOk:nights>=maxMinStay, total: total + cleaning };
-}
+const priceAndMinStay = legacyPrice;
 
 export default async function handler(req, res) {
   try {

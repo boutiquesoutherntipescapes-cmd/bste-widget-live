@@ -182,6 +182,12 @@
 
         bookBtn.style.display='inline-block';
         bookBtn.onclick = () => {
+          if (mount.getAttribute('data-checkout-mode') === 'prepare') {
+            const params = new URLSearchParams({property_slug: property, arrival: ci, departure: co});
+            // Preparation asks separately for adults/children; no price or PII in URL.
+            window.location.assign(`${apiBase}/direct-checkout.html?${params}`);
+            return;
+          }
           // Build the GHL hosted form URL with all params
           const params = {
             property: property,

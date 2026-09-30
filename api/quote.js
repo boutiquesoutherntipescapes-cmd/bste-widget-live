@@ -1,110 +1,12 @@
-import fs from 'fs';
-import { parseMonthsSpec, stayNights, dateRangeList, isoDate, seasonForDate } from './utils.js';
-
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP while testing
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
-// ✅ Support BOTH config formats:
-// 1) Array-only: [ {prop}, {prop} ]
-// 2) Object: { currency: 'ZAR', properties: [ {prop}, ... ] }
-function getConfig() {
-  const raw = fs.readFileSync(new URL('../config/properties.json', import.meta.url), 'utf8');
-  const parsed = JSON.parse(raw);
-
-  if (Array.isArray(parsed)) {
-    return { currency: 'ZAR', properties: parsed };
-  }
-
-  return parsed || { currency: 'ZAR', properties: [] };
-}
-
-export default async function handler(req, res) {
-  try {
-    cors(res);
-    if (req.method === 'OPTIONS') return res.status(204).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-    const { property_slug, check_in, check_out } = req.body || {};
-
-    if (!property_slug || !check_in || !check_out) {
-      return res.status(400).json({ error: 'Missing property_slug, check_in, check_out' });
-    }
-
-    const cfg = getConfig();
-
-    const prop = (cfg.properties || []).find(p => p.property_slug === property_slug);
-
-    if (!prop) {
-      return res.status(404).json({ error: 'Unknown property' });
-    }
-
-    const nights = stayNights(check_in, check_out);
-
-    if (nights <= 0) {
-      return res.status(400).json({ error: 'Invalid date range' });
-    }
-
-    const seasons = (prop.seasons || []).map(s => ({
-      name: s.season_name,
-      months: parseMonthsSpec(s.months || ''),
-      rate: Number(s.nightly_rate_zar || 0),
-      minStay: Number(s.min_stay_nights || 1),
-      cleaning: Number(s.cleaning_fee_zar || 0)
-    }));
-
-    const dates = dateRangeList(check_in, nights);
-
-    let total = 0;
-    let maxMinStay = 1;
-    const breakdown = [];
-
-    for (const d of dates) {
-      const s = seasonForDate(d, seasons);
-
-      if (!s) {
-        return res.status(400).json({
-          error: `No season rule covers ${isoDate(d)}`
-        });
-      }
-
-      total += s.rate;
-
-      if (s.minStay > maxMinStay) {
-        maxMinStay = s.minStay;
-      }
-
-      breakdown.push({
-        date: isoDate(d),
-        season: s.easterOverride ? 'Shoulder Season (Easter Weekend)' : s.name,
-        nightly_rate_zar: s.rate
-      });
-    }
-
-    const cleaningFees = seasons
-      .map(s => s.cleaning)
-      .filter(c => c > 0);
-
-    const cleaning = cleaningFees.length ? Math.max(...cleaningFees) : 0;
-    const minStayOk = nights >= maxMinStay;
-
-    return res.status(200).json({
-      currency: cfg.currency || 'ZAR',
-      nights,
-      min_stay_required: maxMinStay,
-      min_stay_ok: minStayOk,
-      subtotal_nightly: total,
-      cleaning_fee_zar: cleaning,
-      total_price_zar: total + cleaning,
-      breakdown
-    });
-
-  } catch (err) {
-    return res.status(500).json({
-      error: 'Server error in quote',
-      detail: String(err)
-    });
-  }
+import fs from 'node:fs';
+import {priceStay,QuoteError} from '../lib/direct-pricing.js';
+// Legacy display endpoint. Durable preparation uses /api/direct-checkout instead.
+export default async function handler(req,res){
+ res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Cache-Control','no-store');
+ res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
+ if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'POST only'});
+ try{const config=JSON.parse(fs.readFileSync(new URL('../config/properties.json',import.meta.url),'utf8'));const {property_slug,check_in,check_out}=req.body||{};
+ const prop=(Array.isArray(config)?config:config.properties).find(p=>p.property_slug===property_slug);const q=priceStay(prop,check_in,check_out,config.currency||'ZAR');
+ return res.status(200).json({currency:q.currency,nights:q.nights,min_stay_required:q.min_stay_required,min_stay_ok:q.min_stay_ok,subtotal_nightly:q.accommodation_cents/100,cleaning_fee_zar:q.cleaning_cents/100,total_price_zar:q.total_cents/100,breakdown:q.breakdown.map(n=>({date:n.date,season:n.season,nightly_rate_zar:n.rate_cents/100})),inventory_protected:false,availability:'preliminary_only'});
+ }catch(e){return res.status(e instanceof QuoteError?e.status:503).json({error:e instanceof QuoteError?e.message:'QUOTE_UNAVAILABLE'});}
 }
