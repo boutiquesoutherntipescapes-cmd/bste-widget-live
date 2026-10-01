@@ -17,6 +17,39 @@ function reviewForm(row,type){const f=node('form',null,'review'); const select=n
   let saved=false;
   try{await api({action:type,booking_id:row.id,status:select.value,reason:reason.value});await load();saved=true;warn('Staff review saved and audited. Beds24 was not changed.');}
   catch(error){warn(error.message);}finally{busy=false;if(saved)render();else button.disabled=false;}});return f;}
+
+function messageLabel(key){return ({
+ booking_confirmation:'Booking confirmation',
+ pre_arrival:'3 days before arrival',
+ arrival_morning:'Arrival day · 09:00',
+ arrival_evening_essentials:'Arrival day · 20:00',
+ departure_eve:'Day before departure · 18:00',
+ departure_morning:'Departure day · 08:00',
+ post_stay:'Following day · 10:00'
+})[key]||key.replaceAll('_',' ');}
+function renderCommunications(){
+ const select=el('communications-booking'), list=el('communications-list'), note=el('communications-note');
+ if(!data?.communication_previews?.length){select.replaceChildren();list.replaceChildren();note.textContent='No communication previews are available.';return;}
+ const current=select.value;
+ select.replaceChildren(...data.communication_previews.map(p=>{
+  const b=data.bookings.find(x=>x.id===p.booking_id);const o=node('option',`${p.guest_name||'Guest'} · ${b?.arrival||''} · ${b?.source_channel||'Unknown channel'}`);
+  o.value=p.booking_id;return o;
+ }));
+ if(current&&data.communication_previews.some(p=>p.booking_id===current))select.value=current;
+ const preview=data.communication_previews.find(p=>p.booking_id===select.value)||data.communication_previews[0];
+ select.value=preview.booking_id;
+ const b=data.bookings.find(x=>x.id===preview.booking_id);
+ note.textContent=`${preview.guest_name||'Guest'} · ${b?.property_slug||''} · route determined from ${preview.source_channel||'source record'} · ${preview.enrollment_saved?'enrollment saved':'preview uses current time only; not enrolled'} · live sending disabled`;
+ list.replaceChildren(...preview.communications.map(m=>{
+  const row=node('article',null,'communication-row');
+  const top=node('div',null,'communication-top');
+  top.append(node('strong',messageLabel(m.message_key)),node('span',m.status,'status-chip '+m.status));
+  row.append(top,node('div',localTime(m.scheduled_at),'communication-time'),node('div',`Route: ${m.route}`,'communication-route'));
+  if(m.reason)row.append(node('small',`Reason: ${m.reason.replaceAll('_',' ')}`));
+  return row;
+ }));
+}
+
 function render(){if(!data)return;
  el('properties').replaceChildren(...data.properties.map(p=>{const card=node('article',null,'card');card.append(node('strong',p.name),node('span',p.count,'count'),node('small','saved current / future records'));return card;}));
  const d=data.diagnostics,run=d.last_attempt;
@@ -34,11 +67,13 @@ function render(){if(!data)return;
  tr.append(guest,node('td',data.properties.find(p=>p.slug===b.property_slug)?.name||b.property_slug),stay,
  node('td',`${b.adults??'?'} adults / ${b.children??'?'} children`),node('td',b.source_channel||'Not supplied'),node('td',b.source_status),operation,payment,node('td',b.attention.join(' · ')||'—','flags'),actions);return tr;}));
  el('empty').hidden=shown.length>0;
+ renderCommunications();
 }
 async function load(){const current=epoch;try{const result=await api();if(current!==epoch)return;data=result;globalThis.currentOperationsStaff=[data.staff,data.properties];globalThis.loadStayReadiness?.(data.staff,data.properties);globalThis.initStayFinances?.(data.staff);el('identity').textContent=`${data.staff.display_name} · ${data.staff.role} · South African dates`;el('dashboard').hidden=false;
  warn(refreshFailed?'Latest refresh failed. Saved data may be stale; retry when the source is available.':data.diagnostics.warning||'Saved source data loaded. No guest communications are enabled.');render();
  }catch(error){el('dashboard').hidden=true;warn(`Dashboard unavailable: ${error.message}. Sign in again if your session expired.`);throw error;}}
 el('group').addEventListener('change',render);
+el('communications-booking').addEventListener('change',renderCommunications);
 el('refresh').addEventListener('click',async()=>{if(busy)return;busy=true;render();warn('Reading Beds24. The previous snapshot stays in place until the entire refresh succeeds.');
  try{await api({action:'sync'});refreshFailed=false;await load();}catch(error){refreshFailed=true;try{await load();}catch{}warn(error.message+' Saved data must be treated as potentially stale.');}
  finally{busy=false;render();}});
