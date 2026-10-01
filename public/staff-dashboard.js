@@ -40,6 +40,8 @@ function renderCommunications(){
  select.value=preview.booking_id;
  const b=data.bookings.find(x=>x.id===preview.booking_id);
  note.textContent=`${preview.guest_name||'Guest'} · ${b?.property_slug||''} · route determined from ${preview.source_channel||'source record'} · ${preview.enrollment_saved?'enrollment saved':'preview uses current time only; not enrolled'} · live sending disabled`;
+ const enroll=el('communications-enroll'); enroll.disabled=busy||preview.enrollment_saved||!data.staff.permissions.includes('operations.write');
+ enroll.textContent=preview.enrollment_saved?'Preview queue enrolled':'Enroll preview queue';
  list.replaceChildren(...preview.communications.map(m=>{
   const row=node('article',null,'communication-row');
   const top=node('div',null,'communication-top');
@@ -74,6 +76,7 @@ async function load(){const current=epoch;try{const result=await api();if(curren
  }catch(error){el('dashboard').hidden=true;warn(`Dashboard unavailable: ${error.message}. Sign in again if your session expired.`);throw error;}}
 el('group').addEventListener('change',render);
 el('communications-booking').addEventListener('change',renderCommunications);
+el('communications-enroll').addEventListener('click',async()=>{if(busy||!data?.communication_previews?.length)return;const booking_id=el('communications-booking').value;if(!booking_id)return;busy=true;renderCommunications();warn('Enrolling preview queue. Live sending remains disabled.');try{await api({action:'enroll_communications',booking_id});await load();warn('Preview queue enrolled and stored. Live sending is still disabled.');}catch(error){warn(error.message);}finally{busy=false;render();}});
 el('refresh').addEventListener('click',async()=>{if(busy)return;busy=true;render();warn('Reading Beds24. The previous snapshot stays in place until the entire refresh succeeds.');
  try{await api({action:'sync'});refreshFailed=false;await load();}catch(error){refreshFailed=true;try{await load();}catch{}warn(error.message+' Saved data must be treated as potentially stale.');}
  finally{busy=false;render();}});
