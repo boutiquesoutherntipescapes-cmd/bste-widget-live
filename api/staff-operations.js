@@ -15,10 +15,15 @@ export function createOperationsHandler({ authorize=requireStaff, request=operat
     assertStaffOrigin(req);
     if (!String(req.headers?.['content-type']||'').startsWith('application/json')) throw new StaffAuthError(415,'JSON required');
     const { action, booking_id, status, reason }=req.body||{};
-    const permission = {sync:'sync.run',operational:'operations.write',payment:'finance.write'}[action];
+    const permission = {sync:'sync.run',operational:'operations.write',payment:'finance.write',enroll_communications:'operations.write'}[action];
     if (!permission) throw new StaffAuthError(400,'Unknown operations action');
     const {staff,token}=await authorize(req,permission);
     if (action==='sync') return res.status(200).json(await refresh(token,{request}));
+    if (action==='enroll_communications') {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking_id||'')) throw new StaffAuthError(400,'Booking is required');
+      const result=await request('rpc/ops_preview_enroll_communications',token,{method:'POST',body:{target_booking:booking_id}});
+      return res.status(200).json(result);
+    }
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking_id||'')
       || typeof reason!=='string' || !reason.trim() || reason.length>2000) throw new StaffAuthError(400,'Booking and a reason/evidence note are required');
     const valid = action==='operational' ? ['confirmed','review_required','checked_in','checked_out']
