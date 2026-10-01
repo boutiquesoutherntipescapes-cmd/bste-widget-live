@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PROPERTIES, presentDashboard, sastDate } from '../lib/operations-model.js';
 import { collectBookings, mapBooking, ImportError } from '../lib/beds24-operations-import.js';
 import { createOperationsHandler } from '../api/staff-operations.js';
-import { refreshBookings } from '../lib/operations-service.js';
+import { loadDashboard, refreshBookings } from '../lib/operations-service.js';
 import { operationsConfig, operationsRequest } from '../lib/operations-store.js';
 import { StaffAuthError } from '../lib/staff-auth.js';
 const now = new Date('2030-01-10T22:30:00Z');
@@ -167,4 +167,23 @@ test('mocked repeated sync preserves confirmed review and keeps request warning 
   assert.equal(booking.payment_status,'deposit_paid');
   assert.ok(!booking.attention.includes(requestWarning));
  }
+});
+
+test('dashboard communication previews are read-only and route Booking.com by source channel',async()=>{
+ const booking={id:'11111111-1111-4111-8111-111111111111',source_environment:'production',source_account:'bste-test',
+  beds24_booking_id:93636297,property_slug:PROPERTIES[0].slug,beds24_property_id:PROPERTIES[0].propertyId,beds24_room_id:PROPERTIES[0].roomId,
+  arrival:'2030-01-12',departure:'2030-01-15',source_status:'confirmed',source_channel:'Booking.com',
+  guest_name:'Mandy Pelser',guest_email:'mandy@example.com',adults:7,children:0,automation_enrolled_at:null};
+ const request=async(path)=>{
+  if(path==='rpc/ops_dashboard_rows')return [booking];
+  if(path.startsWith('ops_sync_runs?'))return [];
+  if(path.startsWith('ops_communications?'))return [];
+  throw new Error('unexpected '+path);
+ };
+ const view=await loadDashboard('staff-token',request);
+ assert.equal(view.communication_previews.length,1);
+ assert.equal(view.communication_previews[0].preview_only,true);
+ assert.ok(view.communication_previews[0].communications.every(x=>x.route==='beds24_bookingcom'));
+ assert.ok(view.communication_previews[0].communications.every(x=>x.automation_enabled===false));
+ assert.equal(view.communication_previews[0].enrollment_saved,false);
 });
