@@ -198,3 +198,42 @@ test('cron route is GET-only', async () => {
   assert.equal(response.code, 405);
   assert.equal(response.headers.Allow, 'GET');
 });
+
+test('cron route dispatches live mode only when explicitly configured', async () => {
+  let inspected = false;
+  let delivered = false;
+  const liveEnv = {
+    ...env,
+    BSTE_GUEST_WORKER_MODE: 'live',
+    BSTE_GUEST_LIVE_SENDING: 'true'
+  };
+
+  const handler = createGuestCommunicationsWorkerHandler({
+    env: liveEnv,
+    inspect: async () => { inspected = true; return {}; },
+    deliver: async () => {
+      delivered = true;
+      return {
+        ok: true,
+        mode: 'live',
+        live_guest_sending_enabled: true,
+        scanned: 0,
+        sent: 0,
+        failed: 0,
+        not_claimed: 0,
+        items: []
+      };
+    }
+  });
+
+  const response = res();
+  await handler({
+    method: 'GET',
+    headers: { authorization: 'Bearer fixture-cron-secret' }
+  }, response);
+
+  assert.equal(response.code, 200);
+  assert.equal(response.body.mode, 'live');
+  assert.equal(delivered, true);
+  assert.equal(inspected, false);
+});
