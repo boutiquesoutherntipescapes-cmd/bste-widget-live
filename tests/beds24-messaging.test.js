@@ -34,7 +34,7 @@ test('live messaging is hard-disabled by default', async () => {
 
   await assert.rejects(
     sendBeds24GuestMessage({
-      bookingId: 93636297,
+      bookingId: 12345678,
       route: 'beds24_bookingcom',
       message: 'fixture',
       env: baseEnv,
@@ -85,7 +85,7 @@ test('Booking.com live route posts documented Beds24 message payload', async () 
   const calls = [];
 
   const result = await sendBeds24GuestMessage({
-    bookingId: 93636297,
+    bookingId: 12345678,
     route: 'beds24_bookingcom',
     message: 'Departure reminder fixture',
     env: {
@@ -142,7 +142,7 @@ test('Booking.com live route posts documented Beds24 message payload', async () 
     JSON.parse(calls[1].options.body),
     [
       {
-        bookingId: 93636297,
+        bookingId: 12345678,
         message: 'Departure reminder fixture'
       }
     ]
@@ -154,7 +154,7 @@ test('first live release refuses unsupported OTA routes', async () => {
 
   await assert.rejects(
     sendBeds24GuestMessage({
-      bookingId: 93636297,
+      bookingId: 12345678,
       route: 'beds24_airbnb',
       message: 'fixture',
       env: {
@@ -175,7 +175,7 @@ test('network loss after outbound POST becomes uncertain, not blindly retryable'
 
   await assert.rejects(
     sendBeds24GuestMessage({
-      bookingId: 93636297,
+      bookingId: 12345678,
       route: 'beds24_bookingcom',
       message: 'fixture',
       env: {
