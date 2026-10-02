@@ -208,6 +208,7 @@ test('queue scanner only reads explicitly enabled due Booking.com rows', async (
         assert.match(url, /automation_enabled=eq\.true/);
         assert.match(url, /claim_token=is\.null/);
         assert.match(url, /route=eq\.beds24_bookingcom/);
+        assert.match(url, /scheduled_at=gte\./);
         assert.match(url, /scheduled_at=lte\./);
         return reply([]);
       }
