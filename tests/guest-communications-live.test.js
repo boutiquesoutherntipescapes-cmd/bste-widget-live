@@ -240,3 +240,63 @@ test('queue scanner only reads explicitly enabled due Booking.com rows', async (
   assert.equal(result.sent, 0);
   assert.equal(storageUrls.length, 1);
 });
+
+
+test('source sync stores booking before queue scan', async () => {
+  const storageCalls = [];
+
+  const result = await deliverPersistedGuestQueue({
+    env: liveEnv,
+    now: new Date('2026-11-12T16:00:00Z'),
+    collect: async () => ({
+      items: [{
+        snapshot: {
+          source_environment: 'production',
+          source_account: 'fixture-account',
+          beds24_booking_id: 12345678,
+          property_slug: 'legacy-suiderstrand',
+          beds24_property_id: 351452,
+          beds24_room_id: 724919,
+          arrival: '2026-11-10',
+          departure: '2026-11-13',
+          source_status: 'new',
+          source_channel: 'Booking.com',
+          guest_name: 'Sample Guest',
+          guest_email: 'sample@example.com',
+          guest_mobile: null,
+          adults: 2,
+          children: 0,
+          source_modified_at: null,
+          source_observed_at: '2026-11-12T16:00:00.000Z'
+        }
+      }],
+      counts: { 'legacy-suiderstrand': 1 },
+      observedAt: '2026-11-12T16:00:00.000Z'
+    }),
+    storageFetcher: async (url, options) => {
+      storageCalls.push({ url, options });
+
+      if (url.endsWith('/rpc/ops_guest_sync_booking')) {
+        assert.equal(options.method, 'POST');
+        const body = JSON.parse(options.body);
+        assert.equal(body.snapshot.beds24_booking_id, 12345678);
+        return reply('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      }
+
+      if (options.method === 'GET') {
+        return reply([]);
+      }
+
+      throw new Error('Unexpected storage call');
+    },
+    beds24Fetcher: async (url) => {
+      if (url.endsWith('/authentication/token')) {
+        return reply({ token: 'fixture-access-token', expiresIn: 3600 });
+      }
+      throw new Error('Unexpected Beds24 call');
+    }
+  });
+
+  assert.equal(result.source_sync.synced, 1);
+  assert.ok(storageCalls.some(call => call.url.endsWith('/rpc/ops_guest_sync_booking')));
+});
