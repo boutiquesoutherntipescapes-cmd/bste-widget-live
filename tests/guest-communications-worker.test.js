@@ -108,7 +108,11 @@ test('dry-run worker reads queue and bookings but never calls Beds24 or mutates 
             source_status: 'new',
             source_channel: 'Booking.com',
             arrival: '2026-10-01',
-            departure: '2026-10-04'
+            departure: '2026-10-04',
+            property_slug: 'legacy-suiderstrand',
+            guest_name: 'Mandy Pelser',
+            adults: 7,
+            children: 0
           }
         ]);
       }
@@ -133,6 +137,12 @@ test('dry-run worker reads queue and bookings but never calls Beds24 or mutates 
   assert.equal(result.items[0].timing_state, 'expired');
   assert.equal(result.items[1].timing_state, 'future');
   assert.ok(result.items.every(item => item.readiness_reason === 'automation_not_enabled'));
+  assert.equal(result.items[0].render.status, 'blocked');
+  assert.equal(result.items[0].render.reason, 'wifi_secret_missing');
+  assert.equal(result.items[1].render.status, 'rendered');
+  assert.equal(result.items[1].render.subject, 'We hope you’ve enjoyed your stay 🌊');
+  assert.ok(result.items[1].render.body_length > 100);
+  assert.ok(!('body' in result.items[1].render));
   assert.ok(calls.every(call => call.options.method === 'GET'));
   assert.ok(calls.every(call => !call.url.includes('beds24.com')));
 });
