@@ -24,7 +24,7 @@ function bsteGuestDeliveryTestBody_() {
     '',
     'Wi-Fi',
     'Network: 3 Lagoon',
-    'Password: 125Botha456',
+    'Password: [REDACTED — stored only in private Apps Script]',
     '',
     'The Smart TV is available for you to use — simply log into your own streaming services.',
     '',
