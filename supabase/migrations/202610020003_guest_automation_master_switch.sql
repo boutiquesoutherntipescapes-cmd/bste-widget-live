@@ -37,11 +37,6 @@ begin
 end;
 $$;
 
-update public.ops_bookings
-   set automation_enrollment_kind='manual_preview'
- where automation_enrolled_at is not null
-   and automation_enrollment_kind is null;
-
 create or replace function public.ops_guard_snapshot() returns trigger
 language plpgsql set search_path = '' as $$
 begin
@@ -98,6 +93,11 @@ begin
   return new;
 end;
 $$;
+
+update public.ops_bookings
+   set automation_enrollment_kind='manual_preview'
+ where automation_enrolled_at is not null
+   and automation_enrollment_kind is null;
 
 create or replace function public.ops_guest_bookingcom_enabled()
 returns boolean
