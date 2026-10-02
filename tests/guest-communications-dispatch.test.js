@@ -8,7 +8,7 @@ import {
 } from '../lib/guest-communications-dispatch.js';
 
 const booking = {
-  beds24_booking_id: 93636297,
+  beds24_booking_id: 12345678,
   source_status: 'new',
   source_channel: 'Booking.com'
 };
@@ -58,7 +58,7 @@ test('due Booking.com message is ready only inside the grace window', () => {
   });
 
   assert.equal(result.ready, true);
-  assert.equal(result.beds24_booking_id, 93636297);
+  assert.equal(result.beds24_booking_id, 12345678);
   assert.equal(result.message_key, 'departure_eve');
 });
 
