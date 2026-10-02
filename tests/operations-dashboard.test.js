@@ -187,3 +187,26 @@ test('dashboard communication previews are read-only and route Booking.com by so
  assert.ok(view.communication_previews[0].communications.every(x=>x.automation_enabled===false));
  assert.equal(view.communication_previews[0].enrollment_saved,false);
 });
+
+
+test('dashboard exposes read-only guest delivery readiness without enabling automation',async()=>{
+ const booking={id:'22222222-2222-4222-8222-222222222222',source_environment:'production',source_account:'bste-test',
+  beds24_booking_id:93636297,property_slug:PROPERTIES[0].slug,beds24_property_id:PROPERTIES[0].propertyId,beds24_room_id:PROPERTIES[0].roomId,
+  arrival:'2030-01-12',departure:'2030-01-15',source_status:'confirmed',source_channel:'Booking.com',
+  guest_name:'Mandy Pelser',guest_email:'mandy@example.com',adults:7,children:0,automation_enrolled_at:'2030-01-10T08:00:00Z'};
+ const communication={id:'33333333-3333-4333-8333-333333333333',booking_id:booking.id,message_key:'departure_eve',
+  route:'beds24_bookingcom',scheduled_at:'2030-01-14T16:00:00Z',status:'scheduled',automation_enabled:false,
+  provider_message_id:null,sent_at:null,reason:null};
+ const request=async(path)=>{
+  if(path==='rpc/ops_dashboard_rows')return [booking];
+  if(path.startsWith('ops_sync_runs?'))return [];
+  if(path.startsWith('ops_communications?'))return [communication];
+  throw new Error('unexpected '+path);
+ };
+ const view=await loadDashboard('staff-token',request);
+ const row=view.communication_previews[0].communications.find(x=>x.message_key==='departure_eve');
+ assert.equal(row.automation_enabled,false);
+ assert.equal(row.delivery_readiness.ready,false);
+ assert.equal(row.delivery_readiness.reason,'automation_not_enabled');
+ assert.ok(['future','due','expired'].includes(row.delivery_readiness.timing_state));
+});
