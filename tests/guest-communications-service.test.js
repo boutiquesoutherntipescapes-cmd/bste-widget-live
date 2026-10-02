@@ -8,11 +8,11 @@ import {
 
 const mandyStyle = {
   id: '11111111-1111-4111-8111-111111111111',
-  beds24_booking_id: 93636297,
+  beds24_booking_id: 12345678,
   source_kind: 'beds24',
   source_status: 'confirmed',
   source_channel: 'Booking.com',
-  guest_name: 'Mandy Pelser',
+  guest_name: 'Sample Guest',
   guest_email: 'guest@example.com',
   arrival: '2026-10-01',
   departure: '2026-10-04',
