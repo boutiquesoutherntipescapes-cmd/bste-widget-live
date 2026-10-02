@@ -48,6 +48,11 @@ function renderCommunications(){
   top.append(node('strong',messageLabel(m.message_key)),node('span',m.status,'status-chip '+m.status));
   row.append(top,node('div',localTime(m.scheduled_at),'communication-time'),node('div',`Route: ${m.route}`,'communication-route'));
   if(m.reason)row.append(node('small',`Reason: ${m.reason.replaceAll('_',' ')}`));
+  if(m.delivery_readiness){
+   const gate=m.delivery_readiness.reason?m.delivery_readiness.reason.replaceAll('_',' '):(m.delivery_readiness.ready?'ready':'not ready');
+   const timing=(m.delivery_readiness.timing_state||'unknown').replaceAll('_',' ');
+   row.append(node('small',`Delivery readiness: ${gate} · timing: ${timing}`,'communication-readiness'));
+  }
   if(preview.enrollment_saved&&m.id&&m.status==='scheduled'&&m.route!=='unresolved'&&data.staff.permissions.includes('operations.write')){
    const test=node('button','Send test copy to BSTE inbox','communication-test');test.type='button';test.disabled=busy;
    test.addEventListener('click',async()=>{if(busy)return;busy=true;test.disabled=true;warn('Sending a test copy to the BSTE inbox only. The guest queue will not be changed.');
