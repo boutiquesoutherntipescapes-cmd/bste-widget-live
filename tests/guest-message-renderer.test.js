@@ -8,7 +8,7 @@ import {
 
 const booking = {
   property_slug: 'legacy-suiderstrand',
-  guest_name: 'Mandy Pelser',
+  guest_name: 'Sample Guest',
   arrival: '2026-10-01',
   departure: '2026-10-04',
   adults: 7,
@@ -27,7 +27,7 @@ test('departure-eve render matches locked Legacy wording and needs no Wi-Fi secr
   assert.equal(
     result.body,
     [
-      'Hi Mandy,',
+      'Hi Sample,',
       '',
       'We hope you’ve had a wonderful time at Legacy Beach Villa.',
       '',
