@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/guest-communications-worker.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/guest-communications-worker",
+      "dest": "/api/guest-communications-worker.js"
+    }
+  ]
+}
