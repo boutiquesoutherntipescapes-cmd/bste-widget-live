@@ -17,7 +17,8 @@ const liveEnv = {
   BSTE_OPERATIONS_STAGING_PROJECT_REF: ref,
   BSTE_STAFF_SUPABASE_URL: `https://${ref}.supabase.co`,
   BSTE_STAGING_SUPABASE_SERVICE_ROLE_KEY: 'fixture-service-key',
-  BEDS24_REFRESH_TOKEN: 'fixture-refresh-token'
+  BEDS24_REFRESH_TOKEN: 'fixture-refresh-token',
+  BSTE_BEDS24_ACCOUNT_KEY: 'fixture-account'
 };
 
 function reply(json, status = 200) {
@@ -200,6 +201,18 @@ test('queue scanner only reads explicitly enabled due Booking.com rows', async (
     env: liveEnv,
     now: new Date('2026-11-12T16:00:00Z'),
     uuid: () => '55555555-5555-4555-8555-555555555555',
+    collect: async ({ account }) => {
+      assert.equal(account, 'fixture-account');
+      return {
+        items: [],
+        counts: {
+          'legacy-suiderstrand': 0,
+          'kalay-ridge-villa-struisbaai': 0,
+          'the-pearl-beach-villa-agulhas': 0
+        },
+        observedAt: '2026-11-12T16:00:00.000Z'
+      };
+    },
     storageFetcher: async (url, options) => {
       storageUrls.push(url);
 
@@ -215,8 +228,11 @@ test('queue scanner only reads explicitly enabled due Booking.com rows', async (
 
       throw new Error('Unexpected storage call');
     },
-    beds24Fetcher: async () => {
-      throw new Error('must not call Beds24 when no due rows exist');
+    beds24Fetcher: async (url) => {
+      if (url.endsWith('/authentication/token')) {
+        return reply({ token: 'fixture-access-token', expiresIn: 3600 });
+      }
+      throw new Error('Unexpected Beds24 call');
     }
   });
 
