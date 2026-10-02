@@ -104,13 +104,13 @@ test('dry-run worker reads queue and bookings but never calls Beds24 or mutates 
         return reply([
           {
             id: 'booking-1',
-            beds24_booking_id: 93636297,
+            beds24_booking_id: 12345678,
             source_status: 'new',
             source_channel: 'Booking.com',
             arrival: '2026-10-01',
             departure: '2026-10-04',
             property_slug: 'legacy-suiderstrand',
-            guest_name: 'Mandy Pelser',
+            guest_name: 'Sample Guest',
             adults: 7,
             children: 0
           }
