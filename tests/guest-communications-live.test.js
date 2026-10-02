@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   GuestLiveWorkerError,
   deliverClaimedGuestCommunication,
+  deliverPersistedGuestQueue,
   guestLiveWorkerConfig
 } from '../lib/guest-communications-live.js';
 
@@ -190,4 +191,35 @@ test('provider uncertainty is recorded failed and not retried', async () => {
   assert.equal(result.reason, 'provider_outcome_uncertain');
   assert.equal(messagePosts, 1);
   assert.equal(failedRecorded, true);
+});
+
+test('queue scanner only reads explicitly enabled due Booking.com rows', async () => {
+  const storageUrls = [];
+
+  const result = await deliverPersistedGuestQueue({
+    env: liveEnv,
+    now: new Date('2026-11-12T16:00:00Z'),
+    uuid: () => '55555555-5555-4555-8555-555555555555',
+    storageFetcher: async (url, options) => {
+      storageUrls.push(url);
+
+      if (options.method === 'GET') {
+        assert.match(url, /status=eq\.scheduled/);
+        assert.match(url, /automation_enabled=eq\.true/);
+        assert.match(url, /claim_token=is\.null/);
+        assert.match(url, /route=eq\.beds24_bookingcom/);
+        assert.match(url, /scheduled_at=lte\./);
+        return reply([]);
+      }
+
+      throw new Error('Unexpected storage call');
+    },
+    beds24Fetcher: async () => {
+      throw new Error('must not call Beds24 when no due rows exist');
+    }
+  });
+
+  assert.equal(result.scanned, 0);
+  assert.equal(result.sent, 0);
+  assert.equal(storageUrls.length, 1);
 });
