@@ -48,6 +48,13 @@ function renderCommunications(){
   top.append(node('strong',messageLabel(m.message_key)),node('span',m.status,'status-chip '+m.status));
   row.append(top,node('div',localTime(m.scheduled_at),'communication-time'),node('div',`Route: ${m.route}`,'communication-route'));
   if(m.reason)row.append(node('small',`Reason: ${m.reason.replaceAll('_',' ')}`));
+  if(preview.enrollment_saved&&m.id&&m.status==='scheduled'&&m.route!=='unresolved'&&data.staff.permissions.includes('operations.write')){
+   const test=node('button','Send test copy to BSTE inbox','communication-test');test.type='button';test.disabled=busy;
+   test.addEventListener('click',async()=>{if(busy)return;busy=true;test.disabled=true;warn('Sending a test copy to the BSTE inbox only. The guest queue will not be changed.');
+    try{const result=await api({action:'test_communication',booking_id:preview.booking_id,communication_id:m.id});warn(result.ignored==='duplicate_test'?'This exact queue item was already test-sent; no duplicate email was sent.':'Test copy sent to the BSTE inbox. Guest sending remains disabled and the queue was not changed.');}
+    catch(error){warn(error.message);}finally{busy=false;renderCommunications();}});
+   row.append(test);
+  }
   return row;
  }));
 }
