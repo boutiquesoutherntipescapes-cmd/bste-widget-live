@@ -30,3 +30,28 @@ test('preview route requires cron authorization and cannot enter delivery in liv
  await handler({method:'GET',headers,query:{preview_source:'beds24'}},res);assert.equal(res.code,expected);
  }
 });
+
+test('new-channel preview works beside live Booking.com using GETs without enabling new channels',async()=>{
+ resetBeds24MessagingTokenCacheForTests();
+ const fetcher=async(url,options)=>{
+  assert.equal(options.method,'GET');let data=[];
+  if(url.includes('authentication/token'))data={token:'fixture'};
+  else if(url.includes('beds24.com'))data={data:url.includes('roomId=724919')?[
+   {id:321,roomId:724919,propertyId:351452,arrival:'2026-10-09',departure:'2026-10-11',status:'new',channel:'airbnb',firstName:'Airbnb',numAdult:2},
+   {id:322,roomId:724919,propertyId:351452,arrival:'2026-10-09',departure:'2026-10-11',status:'confirmed',channel:'direct',firstName:'Direct',email:'private@example.test',numAdult:2},
+   {id:323,roomId:724919,propertyId:351452,arrival:'2026-10-09',departure:'2026-10-11',status:'request',channel:'direct',firstName:'Pending',numAdult:2},
+   {id:324,roomId:724919,propertyId:351452,arrival:'2026-10-09',departure:'2026-10-11',status:'cancelled',channel:'airbnb',firstName:'Cancelled',numAdult:2}
+  ]:[],pages:{nextPageExists:false}};
+  return {ok:true,json:async()=>data};
+ };
+ const report=await previewBeds24GuestSource({channel:'new_channels',env:{...env,BSTE_GUEST_WORKER_MODE:'live',BSTE_GUEST_LIVE_SENDING:'true'},fetcher,now:new Date('2026-10-05T10:00:00Z')});
+ assert.equal(report.eligible_airbnb_count,1);assert.equal(report.eligible_direct_count,1);assert.equal(report.bookings[1].recipient_available,true);
+ assert.equal(report.provider_messages_sent,0);assert.equal(report.queue_mutated,false);assert.ok(!JSON.stringify(report).includes('private@example.test'));
+ for(const flag of ['BSTE_GUEST_AIRBNB_SENDING','BSTE_GUEST_DIRECT_SENDING'])await assert.rejects(previewBeds24GuestSource({channel:'new_channels',env:{...env,[flag]:'true'},fetcher:()=>assert.fail('network')}));
+});
+test('new-channel endpoint cannot dispatch the live Booking.com worker',async()=>{
+ const handler=createGuestCommunicationsWorkerHandler({env:{...env,BSTE_GUEST_WORKER_MODE:'live',BSTE_GUEST_LIVE_SENDING:'true'},previewSource:async({channel})=>({channel,preview_only:true}),deliver:()=>assert.fail('live dispatch')});
+ const res={setHeader(){},status(c){this.code=c;return this;},json(b){this.body=b;}};
+ await handler({method:'GET',headers:{authorization:'Bearer fixture-cron'},query:{preview_source:'beds24',channel:'new_channels'}},res);
+ assert.equal(res.code,200);assert.equal(res.body.channel,'new_channels');
+});

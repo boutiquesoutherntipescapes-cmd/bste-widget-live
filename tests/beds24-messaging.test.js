@@ -204,3 +204,11 @@ test('network loss after outbound POST becomes uncertain, not blindly retryable'
 
   assert.equal(calls, 2);
 });
+
+test('Airbnb needs separate explicit flag and uses OTA message endpoint', async () => {
+ resetBeds24MessagingTokenCacheForTests();let writes=0;
+ const result=await sendBeds24GuestMessage({bookingId:123,route:'beds24_airbnb',message:'fixture',env:{...baseEnv,BSTE_GUEST_LIVE_SENDING:'true',BSTE_GUEST_AIRBNB_SENDING:'true'},fetcher:async(url,options)=>{
+ if(url.includes('authentication/token'))return fakeResponse({json:{token:'fixture'}});
+ assert.ok(url.endsWith('/bookings/messages'));assert.equal(options.method,'POST');writes++;return fakeResponse({json:[{success:true}]});
+ }});assert.equal(result.route,'beds24_airbnb');assert.equal(writes,1);
+});

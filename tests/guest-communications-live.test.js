@@ -300,3 +300,30 @@ test('source sync stores booking before queue scan', async () => {
   assert.equal(result.source_sync.synced, 1);
   assert.ok(storageCalls.some(call => call.url.endsWith('/rpc/ops_guest_sync_booking')));
 });
+
+test('direct claim uses only Gmail and finalizes provider id without leaking recipient',async()=>{
+ let writes=0;const email='private@example.test';
+ const result=await deliverClaimedGuestCommunication({communicationId:'11111111-1111-4111-8111-111111111111',env:{...liveEnv,BSTE_GUEST_DIRECT_SENDING:'true',BSTE_GMAIL_CLIENT_ID:'fixture',BSTE_GMAIL_CLIENT_SECRET:'fixture',BSTE_GMAIL_REFRESH_TOKEN:'fixture'},storageFetcher:async(url,options)=>{
+  if(url.endsWith('ops_claim_guest_communication'))return reply({claimed:true,communication_id:'11111111-1111-4111-8111-111111111111',route:'direct_email',message_key:'departure_eve',booking:{...booking,source_channel:'direct',guest_email:email}});
+  assert.ok(url.endsWith('ops_mark_guest_communication_sent'));assert.equal(JSON.parse(options.body).provider_message_id_value,'gmail-id');return reply({ok:true,status:'sent'});
+ },beds24Fetcher:()=>assert.fail('OTA send'),emailFetcher:async(url)=>{
+  if(url.includes('oauth2'))return reply({access_token:'fixture'});writes++;return reply({id:'gmail-id'});
+ }});
+ assert.equal(writes,1);assert.equal(result.provider,'gmail');assert.ok(!JSON.stringify(result).includes(email));
+});
+test('a disabled Airbnb runtime switch refuses provider even if storage returns a claim',async()=>{
+ const result=await deliverClaimedGuestCommunication({communicationId:'fixture',env:liveEnv,storageFetcher:async(url,options)=>{
+ if(url.endsWith('ops_claim_guest_communication'))return reply({claimed:true,communication_id:'fixture',route:'beds24_airbnb',message_key:'departure_eve',booking});
+ assert.equal(JSON.parse(options.body).failure_reason,'messaging_not_configured');return reply({ok:true,status:'failed'});
+ },beds24Fetcher:()=>assert.fail('provider called')});assert.equal(result.outcome,'failed');
+});
+
+test('scanner includes only explicitly approved runtime routes and isolates unconfigured email',async()=>{
+ for(const configured of [false,true]){
+ const env={...liveEnv,BSTE_GUEST_AIRBNB_SENDING:'true',BSTE_GUEST_DIRECT_SENDING:'true',...(configured?{BSTE_GMAIL_CLIENT_ID:'fixture',BSTE_GMAIL_CLIENT_SECRET:'fixture',BSTE_GMAIL_REFRESH_TOKEN:'fixture'}:{})};
+ const report=await deliverPersistedGuestQueue({env,collect:async()=>({items:[],counts:{}}),beds24Fetcher:async()=>reply({token:'fixture'}),storageFetcher:async(url)=>{
+ assert.ok(url.includes('&route=in.(beds24_bookingcom,beds24_airbnb'+(configured?',direct_email':'')+')'));return reply([]);
+ }});
+ assert.equal(report.scanned,0);assert.equal(report.blocked_channels.length,configured?0:1);
+ }
+});

@@ -18,4 +18,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test tests/guest-message-renderer.test.js tests/beds24-messaging.test.js tests/guest-communications-dispatch.test.js tests/guest-communications-service.test.js tests/guest-communications-worker.test.js tests/guest-communications-live.test.js
+      - run: node --test tests/guest-message-renderer.test.js tests/beds24-messaging.test.js tests/guest-communications-dispatch.test.js tests/guest-communications-service.test.js tests/guest-communications-worker.test.js tests/guest-communications-live.test.js tests/guest-source-preview.test.js tests/direct-guest-email.test.js tests/guest-communications.test.js

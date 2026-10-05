@@ -35,10 +35,10 @@ export function createGuestCommunicationsWorkerHandler({
 
     try {
       if (req.query?.preview_source === 'beds24') {
-        if (env.BSTE_GUEST_WORKER_MODE !== 'dry_run' || env.BSTE_GUEST_LIVE_SENDING === 'true') {
+        if (req.query?.channel !== 'new_channels' && (env.BSTE_GUEST_WORKER_MODE !== 'dry_run' || env.BSTE_GUEST_LIVE_SENDING === 'true')) {
           return res.status(503).json({error:'Source preview requires safe dry-run mode',code:'preview_not_in_dry_run_mode'});
         }
-        return res.status(200).json(await previewSource({env}));
+        return res.status(200).json(await previewSource({env,channel:req.query?.channel || 'bookingcom'}));
       }
       if (env.BSTE_GUEST_WORKER_MODE === 'dry_run') {
         return res.status(200).json(await inspect({ env }));

@@ -119,3 +119,8 @@ test('unknown queue message key fails closed', () => {
       && error.code === 'unsupported_message_key'
   );
 });
+
+test('Airbnb thank-you requests Airbnb review and return via Airbnb',()=>{
+ const message=renderGuestCommunication({booking:{property_slug:'legacy-suiderstrand',guest_name:'Fixture Guest',arrival:'2026-11-01',departure:'2026-11-03',adults:2,children:0},communication:{message_key:'post_stay',route:'beds24_airbnb'},env:{}});
+ assert.match(message.body,/review of your stay on Airbnb/);assert.doesNotMatch(message.body,/book directly|https:\/\//);
+});
