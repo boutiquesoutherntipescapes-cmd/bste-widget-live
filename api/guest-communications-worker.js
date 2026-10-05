@@ -1,3 +1,4 @@
+import { previewBeds24GuestSource } from '../lib/guest-communications-source-preview.js';
 import {
   GuestWorkerError,
   inspectPersistedGuestQueue
@@ -15,6 +16,7 @@ function authorized(req, env = process.env) {
 
 export function createGuestCommunicationsWorkerHandler({
   inspect = inspectPersistedGuestQueue,
+  previewSource = previewBeds24GuestSource,
   deliver = deliverPersistedGuestQueue,
   env = process.env
 } = {}) {
@@ -32,6 +34,12 @@ export function createGuestCommunicationsWorkerHandler({
     }
 
     try {
+      if (req.query?.preview_source === 'beds24') {
+        if (env.BSTE_GUEST_WORKER_MODE !== 'dry_run' || env.BSTE_GUEST_LIVE_SENDING === 'true') {
+          return res.status(503).json({error:'Source preview requires safe dry-run mode',code:'preview_not_in_dry_run_mode'});
+        }
+        return res.status(200).json(await previewSource({env}));
+      }
       if (env.BSTE_GUEST_WORKER_MODE === 'dry_run') {
         return res.status(200).json(await inspect({ env }));
       }
