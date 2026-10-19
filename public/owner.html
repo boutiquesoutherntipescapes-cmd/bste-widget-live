@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>BSTE Owner Calendar</title>
+  <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex,nofollow">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -237,6 +238,7 @@
         View booked dates and manage owner-use dates for your property.
       </p>
       <p id="propertyName" class="muted">Loading...</p>
+      <a id="monthlyReports" hidden style="display:inline-block;background:#1f2933;color:white;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:700">Monthly Reports</a>
     </div>
 
     <div id="errorBox" class="card hidden">
@@ -325,6 +327,12 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    if (token) {
+      const reportsLink = document.getElementById('monthlyReports');
+      reportsLink.href = 'https://bste-dashboard-bste-rentals-projects.vercel.app/owner-reports.html#token=' + encodeURIComponent(token);
+      reportsLink.hidden = false;
+      reportsLink.setAttribute('rel', 'noreferrer');
+    }
 
     const app = document.getElementById('app');
     const errorBox = document.getElementById('errorBox');
