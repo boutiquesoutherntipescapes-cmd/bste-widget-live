@@ -172,5 +172,12 @@
     if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
   })();
   </script>
+<script>
+(function(){
+  function resize(){parent.postMessage({type:'bste-search-height',height:Math.ceil(document.querySelector('.wrap').getBoundingClientRect().height)+20},'https://www.boutiquesoutherntipescapes.com');}
+  new ResizeObserver(resize).observe(document.querySelector('.wrap'));
+  window.addEventListener('load',resize);
+})();
+</script>
 </body>
 </html>
