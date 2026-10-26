@@ -106,6 +106,11 @@ function getPrepBufferNights(propertySlug) {
   return Math.max(0, Number(prop?.prep_buffer_nights ?? 1));
 }
 
+// Imported owner blocks already have their exact closed nights in Beds24.
+function ownerBuffer(block, defaultNights) {
+  return block.block_type === 'owner_existing' ? 0 : defaultNights;
+}
+
 function bufferedRange(startDate, endDate, bufferNights) {
   const n = Math.max(0, Number(bufferNights || 0));
   return {
@@ -261,13 +266,13 @@ async function loadBookings(propertySlug) {
 
 async function otherOverlappingOwnerBlocks(propertySlug, excludedId, startDate, endDate, bufferNights) {
   const rows = await supabaseFetch(
-    `owner_blocks?select=id,start_date,end_date&property_slug=eq.${encodeURIComponent(propertySlug)}&id=neq.${encodeURIComponent(excludedId)}`
+    `owner_blocks?select=id,start_date,end_date,block_type&property_slug=eq.${encodeURIComponent(propertySlug)}&id=neq.${encodeURIComponent(excludedId)}`
   );
 
   const target = bufferedRange(startDate, endDate, bufferNights);
 
   return (rows || []).filter(row => {
-    const other = bufferedRange(row.start_date, row.end_date, bufferNights);
+    const other = bufferedRange(row.start_date, row.end_date, ownerBuffer(row, getPrepBufferNights(propertySlug)));
     return overlaps(target.start, target.end, other.start, other.end);
   });
 }
@@ -312,7 +317,7 @@ export default async function handler(req, res) {
           const protectedRanges = futureBlocks.map(block => bufferedRange(
             block.start_date,
             block.end_date,
-            prepBufferNights
+            ownerBuffer(block, prepBufferNights)
           ));
 
           const queryStart = protectedRanges
@@ -338,7 +343,7 @@ export default async function handler(req, res) {
             const protectedRange = bufferedRange(
               block.start_date,
               block.end_date,
-              prepBufferNights
+              ownerBuffer(block, prepBufferNights)
             );
 
             const missingDates = [];
@@ -507,7 +512,7 @@ export default async function handler(req, res) {
       if (!id) return res.status(400).json({ ok: false, error: 'Missing block id' });
 
       const existingRows = await supabaseFetch(
-        `owner_blocks?select=id,property_slug,start_date,end_date,note&id=eq.${encodeURIComponent(id)}&property_slug=eq.${encodeURIComponent(propertySlug)}&limit=1`
+        `owner_blocks?select=id,property_slug,start_date,end_date,note,block_type&id=eq.${encodeURIComponent(id)}&property_slug=eq.${encodeURIComponent(propertySlug)}&limit=1`
       );
 
       const existing = existingRows?.[0];
@@ -517,7 +522,7 @@ export default async function handler(req, res) {
       const existingSyncRange = bufferedRange(
         existing.start_date,
         existing.end_date,
-        prepBufferNights
+        ownerBuffer(existing, prepBufferNights)
       );
 
       let syncResult = { cleared: false, reapplied: 0 };
@@ -527,7 +532,7 @@ export default async function handler(req, res) {
           id,
           existing.start_date,
           existing.end_date,
-          prepBufferNights
+          ownerBuffer(existing, prepBufferNights)
         );
 
         // Clear the owner stay plus its prep buffer, then re-apply the buffered
@@ -543,7 +548,7 @@ export default async function handler(req, res) {
           const otherSyncRange = bufferedRange(
             other.start_date,
             other.end_date,
-            prepBufferNights
+            ownerBuffer(other, prepBufferNights)
           );
           await setBeds24Blackout(
             propertySlug,
