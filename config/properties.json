@@ -105,5 +105,14 @@
       }
     ],
     "prep_buffer_nights": 1
+  },
+  {
+    "property_slug": "ctonic-ocean-view-villa",
+    "display_name": "Ctonic Oceanview Villa",
+    "property_page_url": "https://www.boutiquesoutherntipescapes.com/ctonic-beach-villa-struisbaai",
+    "thumbnail_url": "https://images.squarespace-cdn.com/content/v1/67b479b94514d048a4dbd3d8/f94b5857-fc4f-4202-a0ca-e57a68b29909/ctonic-beach-villa-struisbaai-front-exterior-sunset.png",
+    "beds24_room_id": 745734,
+    "prep_buffer_nights": 1,
+    "max_guests": 10
   }
 ]

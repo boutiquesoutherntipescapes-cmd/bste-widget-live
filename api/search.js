@@ -248,6 +248,22 @@ function priceAndMinStay(prop, check_in, check_out, currency = 'ZAR') {
   };
 }
 
+
+// Ctonic uses the same read-only Beds24 quote as its direct checkout.
+export async function searchCheckoutProperty(p, check_in, check_out, guests, fetcher=fetch) {
+  if (!Number.isInteger(Number(guests)) || Number(guests)<1 || Number(guests)>10) return null;
+  const url = new URL('https://bste-checkout-bste-rentals-projects.vercel.app/api/property-search');
+  url.search = new URLSearchParams({check_in, check_out, guests:String(guests)}).toString();
+  try {
+    const response = await fetcher(url, {signal:AbortSignal.timeout(20000),redirect:'error'});
+    if (!response.ok) return {_skipped:true,reason:'feeds_failed',property_slug:p.property_slug};
+    const result = await response.json();
+    if (!result.available) return null;
+    if (!(Number.isFinite(result.total_price_zar) && result.total_price_zar>0) || result.currency!=='ZAR') throw Error('Invalid quote');
+    return {property_slug:p.property_slug,display_name:p.display_name,property_page_url:p.property_page_url,thumbnail_url:p.thumbnail_url,nights:utils.stayNights(check_in,check_out),total_price_zar:result.total_price_zar,currency:result.currency};
+  } catch { return {_skipped:true,reason:'feeds_failed',property_slug:p.property_slug}; }
+}
+
 // ---------- Handler ----------
 export default async function handler(req, res) {
   try {
@@ -304,6 +320,7 @@ export default async function handler(req, res) {
     let ownerBlocksChecked = 0;
 
     const results = await Promise.all(allProps.map(async (p) => {
+      if (p.property_slug === 'ctonic-ocean-view-villa') return searchCheckoutProperty(p, check_in, check_out, guests);
       const { feeds_ok, busyNights } = await loadFeedsForProperty(p);
 
       if (feeds_ok === 0) {
