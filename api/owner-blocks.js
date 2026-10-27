@@ -1,3 +1,4 @@
+import cleanerSource from '../lib/cleaner-source.js';
 // /api/owner-blocks.js
 // Owner calendar blocks API.
 // GET    = list owner blocks + booked dates for a property token
@@ -278,6 +279,7 @@ async function otherOverlappingOwnerBlocks(propertySlug, excludedId, startDate, 
 }
 
 export default async function handler(req, res) {
+  if(req.query?.mode === 'cleaner-source') return cleanerSource(req,res);
   try {
     cors(res);
 
