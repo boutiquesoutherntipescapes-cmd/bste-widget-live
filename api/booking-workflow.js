@@ -260,12 +260,17 @@ export default async function handler(req, res) {
     const suppliedSecret = String(req.query?.secret || '').trim();
 
     if (!expectedSecret || !suppliedSecret || suppliedSecret !== expectedSecret) {
+      console.warn('BSTE booking webhook rejected: credential mismatch');
       return res.status(403).json({ ok: false, error: 'Invalid webhook secret' });
     }
 
     const webhookBooking = req.body?.booking || req.body || {};
     const bookingId = Number(webhookBooking.id || 0);
-    if (!bookingId) return res.status(400).json({ ok: false, error: 'Missing booking id' });
+    if (!bookingId) {
+      console.warn('BSTE booking webhook rejected: missing booking id');
+      return res.status(400).json({ ok: false, error: 'Missing booking id' });
+    }
+    console.info('BSTE booking webhook accepted', bookingId);
 
     const booking = await getBooking(bookingId);
     if (!booking) return res.status(404).json({ ok: false, error: 'Booking not found in Beds24' });
