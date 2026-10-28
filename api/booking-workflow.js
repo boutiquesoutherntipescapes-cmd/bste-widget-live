@@ -220,7 +220,10 @@ async function sendGoogleWorkflow(payload) {
   if (!response.ok) {
     throw new Error(`Google workflow failed: ${response.status} ${text}`);
   }
-  return text;
+  let acknowledgement;
+  try { acknowledgement = JSON.parse(text); } catch { throw new Error('Google workflow acknowledgement missing'); }
+  if (acknowledgement?.ok !== true) throw new Error('Google workflow did not accept delivery');
+  return acknowledgement;
 }
 
 async function markProcessed(bookingId, marker) {
